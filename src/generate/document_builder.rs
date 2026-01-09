@@ -24,7 +24,7 @@ impl DocumentBuilder {
             name: name.into(),
             format: DocumentFormat::A4,
             orientation: DocumentOrientation::Portrait,
-            padding: Padding::xy(Mm(2.5), Mm(5.0)),
+            padding: Padding::xy(Mm(20.0), Mm(15.0)),
         }
     }
 

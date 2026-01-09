@@ -2,7 +2,7 @@ use printpdf::{Mm, PdfDocument, Point};
 
 use crate::generate::{
     document::DocumentStyle,
-    element::{BuildResult, Element},
+    element::{BuildResult, Element2, element_builder::ColumnWidth},
     text_gen::LEFT_WIDTH,
 };
 
@@ -12,79 +12,44 @@ pub enum LeftWidth {
 }
 
 pub struct Column {
-    pub right: Box<dyn Element>,
-    pub left: Box<dyn Element>,
-    pub left_width: LeftWidth,
+    pub right: Box<dyn Element2>,
+    pub left: Box<dyn Element2>,
+    pub left_width: ColumnWidth,
 }
 
 impl Column {
     pub fn new<Left, Right>(left: Left, right: Right) -> Self
     where
-        Left: Element + 'static,
-        Right: Element + 'static,
+        Left: Element2 + 'static,
+        Right: Element2 + 'static,
     {
         Column {
-            left_width: LeftWidth::Fixed(LEFT_WIDTH),
+            left_width: ColumnWidth::Fixed(LEFT_WIDTH),
             left: Box::new(left),
             right: Box::new(right),
         }
     }
 
-    pub fn new_with_box(left: Box<dyn Element>, right: Box<dyn Element>) -> Self {
+    pub fn new_with_box(left: Box<dyn Element2>, right: Box<dyn Element2>) -> Self {
         Self {
             left,
             right,
-            left_width: LeftWidth::Fixed(LEFT_WIDTH),
+            left_width: ColumnWidth::Fixed(LEFT_WIDTH),
         }
     }
 
-    pub fn with_left_width(mut self, width: LeftWidth) -> Self {
+    pub fn with_left_width(mut self, width: ColumnWidth) -> Self {
         self.left_width = width;
         self
     }
 }
 
-impl Element for Column {
-    fn build(
-        &self,
-        document: &PdfDocument,
-        origin: printpdf::Point,
-        max_width: Option<Mm>,
-        page_style: &DocumentStyle,
-    ) -> BuildResult {
-        let left_width = match self.left_width {
-            LeftWidth::Fixed(width) => Some(width),
-            LeftWidth::Auto => None,
-        };
-
-        let left_text = self.left.build(document, origin, left_width, page_style);
-
-        let left_width = left_width.unwrap_or(left_text.width);
-
-        let right_origin = printpdf::Point {
-            x: origin.x + left_width.into_pt(),
-            y: origin.y,
-        };
-
-        let right_text = self.right.build(
-            document,
-            right_origin,
-            Some(max_width.unwrap_or(page_style.inner_width()) - left_width),
-            page_style,
-        );
-
-        let mut ops = left_text.ops;
-        ops.extend(right_text.ops);
-
-        let next_cursor = Point {
-            x: origin.x,
-            y: left_text.next_cursor.y.min(right_text.next_cursor.y),
-        };
-
-        BuildResult {
-            ops,
-            next_cursor,
-            width: left_width + right_text.width,
-        }
+impl Element2 for Column {
+    fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
+        let (mut left_builder, mut right_builder) = builder.push_column(self.left_width);
+        self.left.build(&mut left_builder);
+        self.right.build(&mut right_builder);
+        builder.merge(left_builder);
+        builder.merge(right_builder);
     }
 }

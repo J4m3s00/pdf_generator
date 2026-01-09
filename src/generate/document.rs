@@ -1,10 +1,12 @@
+use std::{fs, path::Path};
+
 use printpdf::{
-    FontId, Mm, Op, ParsedFont, PdfDocument, PdfPage, Point, Pt, Px, RawImage, XObjectId,
-    XObjectTransform,
+    FontId, ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
+    PdfSaveOptions, PdfWarnMsg, Point, Pt, Px, RawImage, XObjectId, XObjectTransform,
 };
 
 use crate::generate::{
-    element::{BuildResult, Element},
+    element::{BuildResult, Element, Element2, element_builder::ElementBuilder},
     padding::Padding,
 };
 
@@ -19,6 +21,10 @@ impl DocumentStyle {
     pub fn inner_width(&self) -> Mm {
         self.width - self.padding.left - self.padding.right
     }
+
+    pub fn inner_height(&self) -> Mm {
+        self.height - self.padding.top - self.padding.bottom
+    }
 }
 
 struct DocumentImage {
@@ -26,10 +32,25 @@ struct DocumentImage {
     position: Point,
 }
 
+#[derive(Default)]
+pub struct Page {
+    ops: Vec<Op>,
+}
+
+impl Page {
+    pub fn push(&mut self, op: Op) {
+        self.ops.push(op);
+    }
+
+    pub fn extend(&mut self, iter: impl Iterator<Item = Op>) {
+        self.ops.extend(iter);
+    }
+}
+
 pub struct Document {
     pdf_document: PdfDocument,
 
-    pub elements: Vec<Box<dyn Element>>,
+    pub elements: Vec<Box<dyn Element2>>,
     style: DocumentStyle,
 
     footer_img: Option<DocumentImage>,
@@ -54,14 +75,22 @@ impl Document {
         }
     }
 
+    pub fn style(&self) -> &DocumentStyle {
+        &self.style
+    }
+
+    pub fn pdf_document(&self) -> &PdfDocument {
+        &self.pdf_document
+    }
+
     pub fn push<E>(&mut self, element: E)
     where
-        E: Element + 'static,
+        E: Element2 + 'static,
     {
         self.elements.push(Box::new(element));
     }
 
-    pub fn push_box(&mut self, element: Box<dyn Element>) {
+    pub fn push_boxed(&mut self, element: Box<dyn Element2>) {
         self.elements.push(element);
     }
 
@@ -117,61 +146,96 @@ impl Document {
         });
     }
 
-    pub fn generate_document(mut self) -> PdfDocument {
-        let start_origin = printpdf::Point::new(
-            self.style.padding.left,
-            self.style.height - self.style.padding.top,
+    pub fn save(self) -> (Vec<u8>, Vec<PdfWarnMsg>) {
+        let generated = self.generate_document();
+        let mut warn_messages = Vec::new();
+        let bytes = generated.save(
+            &PdfSaveOptions {
+                image_optimization: Some(ImageOptimizationOptions {
+                    quality: Some(100.0),
+                    format: Some(ImageCompression::Auto),
+                    max_image_size: Some("10mb".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            &mut warn_messages,
         );
 
-        let inner_width = self.style.inner_width();
+        (bytes, warn_messages)
+    }
 
-        let mut pages = Vec::new();
-        let mut current_ops = Vec::new();
-        current_ops.extend(self.generate_header_ops());
-        current_ops.extend(self.generate_footer_ops());
-
-        let mut current_origin = start_origin;
+    pub fn generate_document(mut self) -> PdfDocument {
+        let mut current_builder = ElementBuilder::new(&self);
         for element in &self.elements {
-            let mut element_ops = element.build(
-                &self.pdf_document,
-                current_origin,
-                Some(inner_width),
-                &self.style,
-            );
-
-            if element_ops.next_cursor.y < self.style.padding.bottom.into_pt() {
-                pages.push(PdfPage::new(
-                    self.style.width,
-                    self.style.height,
-                    current_ops.clone(),
-                ));
-                current_ops.clear();
-                current_ops.extend(self.generate_footer_ops());
-
-                current_origin = start_origin;
-
-                element_ops = element.build(
-                    &self.pdf_document,
-                    current_origin,
-                    Some(inner_width),
-                    &self.style,
-                );
-            }
-
-            current_ops.extend(element_ops.ops);
-
-            current_origin = element_ops.next_cursor;
+            element.build(&mut current_builder);
         }
 
-        pages.push(PdfPage::new(
-            self.style.width,
-            self.style.height,
-            current_ops,
-        ));
+        let pages = current_builder
+            .pages
+            .into_iter()
+            .map(|page| PdfPage::new(self.style.width, self.style.height, page))
+            .collect();
 
         self.pdf_document.with_pages(pages);
+
         self.pdf_document
     }
+    // pub fn generate_document(mut self) -> PdfDocument {
+    //     let start_origin = printpdf::Point::new(
+    //         self.style.padding.left,
+    //         self.style.height - self.style.padding.top,
+    //     );
+    //
+    //     let inner_width = self.style.inner_width();
+    //
+    //     let mut pages = Vec::new();
+    //     let mut current_ops = Vec::new();
+    //     current_ops.extend(self.generate_header_ops());
+    //     current_ops.extend(self.generate_footer_ops());
+    //
+    //     let mut current_origin = start_origin;
+    //     for element in &self.elements {
+    //         let mut element_ops = element.build(
+    //             &self.pdf_document,
+    //             current_origin,
+    //             Some(inner_width),
+    //             &self.style,
+    //         );
+    //
+    //         if element_ops.next_cursor.y < self.style.padding.bottom.into_pt() {
+    //             pages.push(PdfPage::new(
+    //                 self.style.width,
+    //                 self.style.height,
+    //                 current_ops.clone(),
+    //             ));
+    //             current_ops.clear();
+    //             current_ops.extend(self.generate_footer_ops());
+    //
+    //             current_origin = start_origin;
+    //
+    //             element_ops = element.build(
+    //                 &self.pdf_document,
+    //                 current_origin,
+    //                 Some(inner_width),
+    //                 &self.style,
+    //             );
+    //         }
+    //
+    //         current_ops.extend(element_ops.ops);
+    //
+    //         current_origin = element_ops.next_cursor;
+    //     }
+    //
+    //     pages.push(PdfPage::new(
+    //         self.style.width,
+    //         self.style.height,
+    //         current_ops,
+    //     ));
+    //
+    //     self.pdf_document.with_pages(pages);
+    //     self.pdf_document
+    // }
 
     fn generate_header_ops(&self) -> Vec<Op> {
         if let Some(header) = &self.header_img {
@@ -200,29 +264,6 @@ impl Document {
             }]
         } else {
             Vec::new()
-        }
-    }
-}
-
-impl Element for Document {
-    fn build(
-        &self,
-        document: &PdfDocument,
-        mut origin: Point,
-        max_width: Option<Mm>,
-        document_style: &DocumentStyle,
-    ) -> BuildResult {
-        let mut ops = Vec::new();
-        for element in &self.elements {
-            let element_ops = element.build(document, origin, max_width, document_style);
-            ops.extend(element_ops.ops);
-
-            origin = element_ops.next_cursor;
-        }
-        BuildResult {
-            ops,
-            next_cursor: origin,
-            width: self.style.width,
         }
     }
 }

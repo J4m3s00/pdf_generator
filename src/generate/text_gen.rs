@@ -28,3 +28,35 @@ pub fn shape_text(
     shaped_text.height = shaped_text.lines.len() as f32 * (font_size + font_height_offset).0;
     shaped_text
 }
+
+/// This will cut the shaped text to the given max height.
+/// We will cut only once, since the next max_height could be different.
+pub fn split_shaped_text(
+    mut text: ShapedText,
+    font_size: Pt,
+    font_height_offset: Pt,
+    max_height: Mm,
+) -> (ShapedText, Option<ShapedText>) {
+    let max_height_pt = max_height.into_pt();
+    let fit_lines = (max_height_pt / (font_size + font_height_offset)) as usize;
+
+    if fit_lines >= text.lines.len() {
+        return (text, None);
+    }
+
+    let first_height = fit_lines as f32 * (font_size + font_height_offset).0;
+    let rest_height = text.height - first_height;
+
+    let rest_lines = text.lines.split_off(fit_lines);
+    text.height = first_height;
+
+    let rest = ShapedText {
+        font_id: text.font_id.clone(),
+        options: text.options.clone(),
+        lines: rest_lines,
+        width: text.width,
+        height: rest_height,
+    };
+
+    (text, Some(rest))
+}

@@ -2,7 +2,7 @@ use printpdf::{FontId, Mm, PdfDocument, Point, Pt};
 
 use crate::generate::{
     document::DocumentStyle,
-    element::{BuildResult, Element},
+    element::{BuildResult, Element, Element2, element_builder::ElementBuilder},
     text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE, shape_text},
 };
 
@@ -58,5 +58,16 @@ impl Element for Paragraph {
             next_cursor,
             width: Mm::from(Pt(shaped_text.width)),
         }
+    }
+}
+
+impl Element2 for Paragraph {
+    fn build<'a>(&self, builder: &mut ElementBuilder<'a>) {
+        builder.push_paragraph(
+            self.text.as_str(),
+            self.font.clone(),
+            self.font_size,
+            self.font_height_offset,
+        );
     }
 }
