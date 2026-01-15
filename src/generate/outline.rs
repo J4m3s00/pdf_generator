@@ -1,11 +1,8 @@
 use printpdf::{Pt, Rgb};
 
-use crate::generate::padding::Padding;
-
 pub struct TextOutline {
     pub color: Rgb,
     pub thickness: Pt,
-    pub padding: Padding,
 }
 
 impl Default for TextOutline {
@@ -18,7 +15,6 @@ impl Default for TextOutline {
                 icc_profile: None,
             },
             thickness: Pt(1.0),
-            padding: Padding::none(),
         }
     }
 }

@@ -2,7 +2,9 @@ use printpdf::{FontId, Mm, PaintMode, Point, Polygon, Pt, Rect};
 
 use crate::generate::{
     document::DocumentStyle,
-    element::Element,
+    element::{Element, Element2, element_builder::ColumnWidth},
+    outline::TextOutline,
+    padding::Padding,
     text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE, shape_text},
 };
 
@@ -100,5 +102,53 @@ impl Element for CheckboxGroup {
             },
             width: Mm::from(offset_x - origin.x),
         }
+    }
+}
+
+impl Element2 for CheckboxGroup {
+    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+        todo!()
+    }
+
+    fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
+        let (mut left, mut right) = builder
+            .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
+
+        for (index, item) in self.checkboxes.iter().enumerate() {
+            let (mut box_builder, mut text_builder) = left
+                .generate_column_builder(ColumnWidth::Fixed(Mm::from(self.font_size + Pt(4.0))));
+
+            box_builder.push_square(self.font_size);
+
+            text_builder.push_paragraph(
+                item.as_str(),
+                self.font.clone(),
+                self.font_size,
+                self.font_height_offset,
+            );
+
+            let column_width =
+                ColumnWidth::Percent(1.0 / (self.checkboxes.len() - index - 1) as f32);
+            let (new_left, new_right) = right.generate_column_builder(column_width);
+
+            builder.merge(box_builder);
+            builder.merge(text_builder);
+
+            left = new_left;
+            right = new_right;
+        }
+
+        let text_height = self
+            .checkboxes
+            .iter()
+            .map(|cb| {
+                builder.mesure_text(
+                    cb.as_str(),
+                    self.font.clone(),
+                    self.font_size,
+                    self.font_height_offset,
+                )
+            })
+            .fold(Pt(0.0), |v, (_, height)| v + height);
     }
 }

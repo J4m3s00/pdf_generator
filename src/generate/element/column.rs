@@ -1,8 +1,7 @@
-use printpdf::{Mm, PdfDocument, Point};
+use printpdf::Mm;
 
 use crate::generate::{
-    document::DocumentStyle,
-    element::{BuildResult, Element2, element_builder::ColumnWidth},
+    element::{Element2, element_builder::ColumnWidth},
     text_gen::LEFT_WIDTH,
 };
 
@@ -45,11 +44,31 @@ impl Column {
 }
 
 impl Element2 for Column {
+    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+        let (left_builder, right_builder) = builder.generate_column_builder(self.left_width);
+
+        let left_height = self.left.calculate_height(&left_builder);
+        let right_height = self.right.calculate_height(&right_builder);
+
+        left_height.max(right_height)
+    }
+
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
-        let (mut left_builder, mut right_builder) = builder.push_column(self.left_width);
+        let (mut left_builder, mut right_builder) =
+            builder.generate_column_builder(self.left_width);
         self.left.build(&mut left_builder);
         self.right.build(&mut right_builder);
+
+        let new_y = if left_builder.pages.len() == right_builder.pages.len() {
+            left_builder.cursor.y.min(right_builder.cursor.y)
+        } else if left_builder.pages.len() > right_builder.pages.len() {
+            left_builder.cursor.y
+        } else {
+            right_builder.cursor.y
+        };
+
         builder.merge(left_builder);
         builder.merge(right_builder);
+        builder.update_cursor(new_y);
     }
 }

@@ -62,6 +62,19 @@ impl Element for Paragraph {
 }
 
 impl Element2 for Paragraph {
+    fn calculate_height<'a>(&self, builder: &ElementBuilder<'a>) -> Mm {
+        Mm::from(
+            builder
+                .mesure_text(
+                    self.text.as_str(),
+                    self.font.clone(),
+                    self.font_size,
+                    self.font_height_offset,
+                )
+                .1,
+        )
+    }
+
     fn build<'a>(&self, builder: &mut ElementBuilder<'a>) {
         builder.push_paragraph(
             self.text.as_str(),

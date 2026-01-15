@@ -3,18 +3,49 @@ use std::path::Path;
 use pdf_generator::generate::{
     TOPOL_OTF,
     document_builder::DocumentBuilder,
-    element::{column::Column, element_builder::ColumnWidth, paragraph::Paragraph},
+    element::{checkbox_group::CheckboxGroup, group::Group, paragraph::Paragraph},
+    outline::TextOutline,
+    padding::Padding,
 };
+use printpdf::Mm;
 
 fn main() {
     let mut doc = DocumentBuilder::new("Test").build();
     let font = doc.add_font(TOPOL_OTF);
 
-    let left = Paragraph::new(include_str!("../../test.txt"), font.clone());
-    let right = Paragraph::new(include_str!("../../test.txt"), font.clone());
+    let mut group = Group::new()
+        .with_try_keep_together(true)
+        // .with_outline(TextOutline::default())
+        .with_padding(Padding::new(Mm(10.0), Mm(20.0), Mm(30.0), Mm(40.0)));
 
-    let col = Column::new(left, right).with_left_width(ColumnWidth::Percent(0.5));
-    doc.push(col);
+    group.push(Paragraph::new(
+        include_str!("../../lorem_short.txt"),
+        font.clone(),
+    ));
+
+    doc.push(group);
+
+    let checkbox_group = CheckboxGroup::new(
+        vec!["One".to_string(), "Two".to_string(), "Three".to_string()],
+        font.clone(),
+    );
+
+    doc.push(checkbox_group);
+
+    // let mut right = Group::new().with_padding(Padding::left(Mm(5.0)));
+    // right.push(Paragraph::new(
+    //     include_str!("../../lorem_long.txt"),
+    //     font.clone(),
+    // ));
+    // let left = Paragraph::new(include_str!("../../lorem_short.txt"), font.clone());
+    //
+    // let col = Column::new(left, right).with_left_width(ColumnWidth::Percent(0.5));
+    // let mut col_group = Group::new().with_outline(TextOutline::default());
+    // col_group.push(col);
+    //
+    // doc.push(col_group);
+    //
+    // doc.push(Paragraph::new("Some text", font.clone()));
 
     let (data, warnings) = doc.save();
 
