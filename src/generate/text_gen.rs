@@ -5,6 +5,21 @@ pub const DEFAULT_FONT_LINE_HEIGHT_OFFSET: Pt = Pt(3.9);
 
 pub const LEFT_WIDTH: Mm = Mm(50.0);
 
+fn space_between_newlines(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut prev_was_nl = false;
+
+    for ch in input.chars() {
+        if ch == '\n' && prev_was_nl {
+            result.push(' ');
+        }
+        result.push(ch);
+        prev_was_nl = ch == '\n';
+    }
+
+    result
+}
+
 pub fn shape_text(
     doc: &PdfDocument,
     font: FontId,
@@ -17,6 +32,9 @@ pub fn shape_text(
         panic!("Font resource not found for font ID: {:?}", font);
     }
 
+    // We need to add a space between two new lines to avoid not showing the second new line.
+    let formated_text = space_between_newlines(text);
+
     let shaping_options = TextShapingOptions {
         font_size,
         //line_height: Some(Pt(font_size.0 + font_height_offset)),
@@ -24,7 +42,10 @@ pub fn shape_text(
         max_width: max_width.map(Pt::from),
         ..Default::default()
     };
-    let mut shaped_text = doc.shape_text(text, &font, &shaping_options).unwrap();
+
+    let mut shaped_text = doc
+        .shape_text(&formated_text, &font, &shaping_options)
+        .unwrap();
     shaped_text.height = shaped_text.lines.len() as f32 * (font_size + font_height_offset).0;
     shaped_text
 }

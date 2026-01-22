@@ -120,7 +120,7 @@ impl Element2 for CheckboxGroup {
 
                 let height = self.font_size.max(
                     text_builder
-                        .mesure_text(
+                        .measure_text(
                             item.as_str(),
                             self.font.clone(),
                             self.font_size,

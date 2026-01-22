@@ -3,9 +3,13 @@ use std::path::Path;
 use pdf_generator::generate::{
     TOPOL_OTF,
     document_builder::DocumentBuilder,
-    element::{checkbox_group::CheckboxGroup, group::Group, paragraph::Paragraph},
+    element::{
+        checkbox_group::CheckboxGroup, element_builder::ElementBuilder, group::Group,
+        paragraph::Paragraph,
+    },
     outline::TextOutline,
     padding::Padding,
+    text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE},
 };
 use printpdf::Mm;
 
@@ -13,9 +17,16 @@ fn main() {
     let mut doc = DocumentBuilder::new("Test").build();
     let font = doc.add_font(TOPOL_OTF);
 
+    let new_line_paragraph = Paragraph::new(
+        "First Line\n\n\nSecond line\nSomething else\nAnother one\nTest\nTest\nTest",
+        font.clone(),
+    );
+
+    doc.push(new_line_paragraph);
+
     let mut group = Group::new()
         .with_try_keep_together(true)
-        // .with_outline(TextOutline::default())
+        .with_outline(TextOutline::default())
         .with_padding(Padding::new(Mm(46.0), Mm(20.0), Mm(30.0), Mm(40.0)));
 
     group.push(Paragraph::new(
@@ -27,7 +38,7 @@ fn main() {
 
     let mut group = Group::new()
         .with_try_keep_together(true)
-        // .with_outline(TextOutline::default())
+        .with_outline(TextOutline::default())
         .with_padding(Padding::new(Mm(10.0), Mm(20.0), Mm(30.0), Mm(40.0)));
 
     group.push(Paragraph::new(

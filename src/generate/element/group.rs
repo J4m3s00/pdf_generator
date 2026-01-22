@@ -113,9 +113,12 @@ impl Group {
 
 impl Element2 for Group {
     fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+        // We need to compute the text height with the padding of the group
+        let group_builder = builder.generate_group_builder(&self.padding, None);
+
         self.elements
             .iter()
-            .map(|elem| elem.calculate_height(builder))
+            .map(|elem| elem.calculate_height(&group_builder))
             .fold(Mm(0.0), |v, h| v + h)
             + self.padding.top
             + self.padding.bottom

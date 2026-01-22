@@ -33,6 +33,7 @@ pub struct ElementBuilder<'a> {
     remaining_width: Mm,
     starting_page: usize,
     pub pages: Vec<Vec<Op>>,
+    added_padding_bottom: Mm,
 }
 
 impl<'a> ElementBuilder<'a> {
@@ -50,12 +51,13 @@ impl<'a> ElementBuilder<'a> {
             remaining_width: style.inner_width(),
             starting_page: 0,
             pages: vec![Vec::new()],
+            added_padding_bottom: Mm(0.0),
         }
     }
 }
 
 impl<'a> ElementBuilder<'a> {
-    pub fn mesure_text(
+    pub fn measure_text(
         &self,
         text: &str,
         font: FontId,
@@ -100,6 +102,14 @@ impl<'a> ElementBuilder<'a> {
             font_size,
             font_height_offset,
             self.remaining_height_from_cursor(),
+        );
+
+        println!("Pushing text with height: {:?}", Mm::from(Pt(first.height)));
+
+        println!(
+            "Pushing text at {:?} {:?}",
+            Mm::from(self.cursor.x),
+            self.document.style().height - Mm::from(self.cursor.y)
         );
 
         let ops = first.get_ops(self.cursor);
@@ -172,6 +182,7 @@ impl<'a> ElementBuilder<'a> {
             remaining_width: left_width,
             starting_page: self.pages.len() - 1,
             pages: vec![Vec::new()],
+            added_padding_bottom: Mm(0.0),
         };
         let right_origin = Point {
             x: self.cursor.x + left_width.into_pt(),
@@ -185,6 +196,7 @@ impl<'a> ElementBuilder<'a> {
             remaining_width: right_width,
             starting_page: self.pages.len() - 1,
             pages: vec![Vec::new()],
+            added_padding_bottom: Mm(0.0),
         };
 
         (left_builder, right_builder)
@@ -203,11 +215,22 @@ impl<'a> ElementBuilder<'a> {
         padding: &Padding,
         try_same_page: Option<Mm>,
     ) -> ElementBuilder<'a> {
+        println!(
+            "Generating group builder at {:?}",
+            self.document.style().height - Mm::from(self.cursor.y)
+        );
+        println!(
+            "Remaining height from cursor: {:?}",
+            self.remaining_height_from_cursor()
+        );
+        println!("Try same page: {:?}", try_same_page);
+
         let (origin, new_page) = match try_same_page {
             Some(height)
                 if height <= self.document.style().inner_height()
                     && self.remaining_height_from_cursor() < height =>
             {
+                println!("Cant fit");
                 // We can fit the group on a single page, but need to go to the next
                 let origin = Point {
                     x: self.origin.x + padding.left.into_pt(),
@@ -234,6 +257,7 @@ impl<'a> ElementBuilder<'a> {
             remaining_width: self.remaining_width - (padding.left + padding.right),
             starting_page: self.pages.len() - if new_page { 0 } else { 1 },
             pages: vec![Vec::new()],
+            added_padding_bottom: padding.bottom,
         }
     }
 
@@ -575,7 +599,7 @@ impl<'a> ElementBuilder<'a> {
     }
 
     fn remaining_height_from_cursor(&self) -> Mm {
-        Mm::from(self.cursor.y) - self.document.style().padding.bottom
+        Mm::from(self.cursor.y) - self.document.style().padding.bottom - self.added_padding_bottom
     }
 
     fn remaining_width_from_cursor(&self) -> Mm {
