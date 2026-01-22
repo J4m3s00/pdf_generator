@@ -107,11 +107,48 @@ impl Element for CheckboxGroup {
 
 impl Element2 for CheckboxGroup {
     fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        todo!()
+        let (mut left, mut right) = builder
+            .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
+
+        self.checkboxes
+            .iter()
+            .enumerate()
+            .fold(Mm(0.0), move |v, (index, item)| {
+                let (_, text_builder) = left.generate_column_builder(ColumnWidth::Fixed(Mm::from(
+                    self.font_size + Pt(4.0),
+                )));
+
+                let height = self.font_size.max(
+                    text_builder
+                        .mesure_text(
+                            item.as_str(),
+                            self.font.clone(),
+                            self.font_size,
+                            self.font_height_offset,
+                        )
+                        .1,
+                );
+
+                let column_width =
+                    ColumnWidth::Percent(1.0 / (self.checkboxes.len() - index - 1) as f32);
+                let (new_left, new_right) = right.generate_column_builder(column_width);
+
+                left = new_left;
+                right = new_right;
+
+                v.max(Mm::from(height))
+            })
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
-        let (mut left, mut right) = builder
+        // Create a group builder, to have the checkboxes in a group
+        // When the checkbox_group is at the bottom of the page, and one of the text has multiple
+        // lines and pushes to the next page, we want the whole checkbox_group to be on the next
+        // page if possible
+        let mut group_builder =
+            builder.generate_group_builder(&Padding::none(), Some(self.calculate_height(builder)));
+
+        let (mut left, mut right) = group_builder
             .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
 
         for (index, item) in self.checkboxes.iter().enumerate() {
@@ -131,24 +168,13 @@ impl Element2 for CheckboxGroup {
                 ColumnWidth::Percent(1.0 / (self.checkboxes.len() - index - 1) as f32);
             let (new_left, new_right) = right.generate_column_builder(column_width);
 
-            builder.merge(box_builder);
-            builder.merge(text_builder);
+            group_builder.merge(box_builder);
+            group_builder.merge(text_builder);
 
             left = new_left;
             right = new_right;
         }
 
-        let text_height = self
-            .checkboxes
-            .iter()
-            .map(|cb| {
-                builder.mesure_text(
-                    cb.as_str(),
-                    self.font.clone(),
-                    self.font_size,
-                    self.font_height_offset,
-                )
-            })
-            .fold(Pt(0.0), |v, (_, height)| v + height);
+        builder.merge(group_builder);
     }
 }

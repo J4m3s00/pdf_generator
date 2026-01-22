@@ -116,6 +116,10 @@ impl<'a> ElementBuilder<'a> {
     }
 
     pub fn push_square(&mut self, size: Pt) {
+        if self.remaining_height_from_cursor().into_pt() < size {
+            self.next_page();
+        }
+
         let mut ops = Vec::new();
 
         let checkbox_rect = Rect {

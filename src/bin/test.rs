@@ -16,6 +16,18 @@ fn main() {
     let mut group = Group::new()
         .with_try_keep_together(true)
         // .with_outline(TextOutline::default())
+        .with_padding(Padding::new(Mm(46.0), Mm(20.0), Mm(30.0), Mm(40.0)));
+
+    group.push(Paragraph::new(
+        include_str!("../../lorem_short.txt"),
+        font.clone(),
+    ));
+
+    doc.push(group);
+
+    let mut group = Group::new()
+        .with_try_keep_together(true)
+        // .with_outline(TextOutline::default())
         .with_padding(Padding::new(Mm(10.0), Mm(20.0), Mm(30.0), Mm(40.0)));
 
     group.push(Paragraph::new(
@@ -26,7 +38,11 @@ fn main() {
     doc.push(group);
 
     let checkbox_group = CheckboxGroup::new(
-        vec!["One".to_string(), "Two".to_string(), "Three".to_string()],
+        vec![
+            "One asdl alskfjh alksjdhg aldjfgh sldkjgfh sldkjfgh kjshdf".to_string(),
+            "Two".to_string(),
+            "Three".to_string(),
+        ],
         font.clone(),
     );
 
