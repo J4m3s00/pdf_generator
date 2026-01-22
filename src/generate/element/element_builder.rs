@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use printpdf::{FontId, Line, LinePoint, Mm, Op, PaintMode, Point, Polygon, Pt, Rect, ShapedText};
 
 use crate::generate::document::Document;
-use crate::generate::outline::TextOutline;
+use crate::generate::outline::LineStyle;
 use crate::generate::padding::Padding;
 use crate::generate::text_gen::{shape_text, split_shaped_text};
 
@@ -104,14 +104,6 @@ impl<'a> ElementBuilder<'a> {
             self.remaining_height_from_cursor(),
         );
 
-        println!("Pushing text with height: {:?}", Mm::from(Pt(first.height)));
-
-        println!(
-            "Pushing text at {:?} {:?}",
-            Mm::from(self.cursor.x),
-            self.document.style().height - Mm::from(self.cursor.y)
-        );
-
         let ops = first.get_ops(self.cursor);
         self.pages
             .last_mut()
@@ -125,7 +117,7 @@ impl<'a> ElementBuilder<'a> {
         }
     }
 
-    pub fn push_square(&mut self, size: Pt) {
+    pub fn draw_rect(&mut self, size: Pt) {
         if self.remaining_height_from_cursor().into_pt() < size {
             self.next_page();
         }
@@ -150,10 +142,58 @@ impl<'a> ElementBuilder<'a> {
         });
         ops.push(printpdf::Op::RestoreGraphicsState);
 
+        self.advance_cursor(size);
+
         self.pages
             .last_mut()
             .expect("Always at least one page")
             .extend(ops);
+    }
+
+    pub fn draw_line(&mut self, padding: &Padding, outline: &LineStyle) {
+        self.advance_cursor(padding.top.into_pt());
+
+        let width = self.remaining_width_from_cursor() - padding.left - padding.right;
+        println!("Width of line: {:?}", width);
+
+        let mut ops = Vec::new();
+        ops.push(Op::SaveGraphicsState);
+        ops.push(Op::SetOutlineColor {
+            col: printpdf::Color::Rgb(outline.color.clone()),
+        });
+        ops.push(Op::SetOutlineThickness {
+            pt: outline.thickness,
+        });
+        ops.push(Op::DrawLine {
+            line: printpdf::Line {
+                points: vec![
+                    LinePoint {
+                        bezier: false,
+                        p: Point {
+                            x: self.cursor.x + padding.left.into_pt(),
+                            y: self.cursor.y,
+                        },
+                    },
+                    LinePoint {
+                        bezier: false,
+                        p: Point {
+                            x: self.cursor.x + width.into_pt() - padding.right.into_pt(),
+                            y: self.cursor.y,
+                        },
+                    },
+                ],
+                is_closed: false,
+            },
+        });
+
+        ops.push(Op::RestoreGraphicsState);
+
+        self.pages
+            .last_mut()
+            .expect("Always at least one page")
+            .extend(ops);
+
+        self.advance_cursor(padding.bottom.into_pt());
     }
 
     /// Currently the prefix is just a box.
@@ -215,22 +255,11 @@ impl<'a> ElementBuilder<'a> {
         padding: &Padding,
         try_same_page: Option<Mm>,
     ) -> ElementBuilder<'a> {
-        println!(
-            "Generating group builder at {:?}",
-            self.document.style().height - Mm::from(self.cursor.y)
-        );
-        println!(
-            "Remaining height from cursor: {:?}",
-            self.remaining_height_from_cursor()
-        );
-        println!("Try same page: {:?}", try_same_page);
-
         let (origin, new_page) = match try_same_page {
             Some(height)
                 if height <= self.document.style().inner_height()
                     && self.remaining_height_from_cursor() < height =>
             {
-                println!("Cant fit");
                 // We can fit the group on a single page, but need to go to the next
                 let origin = Point {
                     x: self.origin.x + padding.left.into_pt(),
@@ -261,7 +290,7 @@ impl<'a> ElementBuilder<'a> {
         }
     }
 
-    pub fn draw_outline(&mut self, padding: &Padding, outline: &TextOutline) {
+    pub fn draw_outline(&mut self, padding: &Padding, outline: &LineStyle) {
         let width = self.remaining_width + padding.left + padding.right;
 
         {
@@ -610,6 +639,11 @@ impl<'a> ElementBuilder<'a> {
     /// Sets the cursor y position
     pub fn update_cursor(&mut self, y: Pt) {
         self.cursor.y = y;
+    }
+
+    /// Sets the cursor x back to the origin
+    pub fn reset_cursor_x(&mut self) {
+        self.cursor.x = self.origin.x;
     }
 
     fn remaining_height_from_cursor(&self) -> Mm {

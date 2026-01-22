@@ -1,10 +1,10 @@
 use printpdf::Mm;
 
-use crate::generate::{element::Element2, outline::TextOutline, padding::Padding};
+use crate::generate::{element::Element2, outline::LineStyle, padding::Padding};
 
 pub struct Group {
     pub elements: Vec<Box<dyn Element2>>,
-    pub outline: Option<TextOutline>,
+    pub outline: Option<LineStyle>,
     pub padding: Padding,
     pub try_keep_together: bool,
 }
@@ -36,7 +36,7 @@ impl Group {
         self
     }
 
-    pub fn with_outline(mut self, outline: TextOutline) -> Self {
+    pub fn with_outline(mut self, outline: LineStyle) -> Self {
         self.outline = Some(outline);
         self
     }

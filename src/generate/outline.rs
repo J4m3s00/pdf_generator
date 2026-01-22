@@ -1,11 +1,11 @@
 use printpdf::{Pt, Rgb};
 
-pub struct TextOutline {
+pub struct LineStyle {
     pub color: Rgb,
     pub thickness: Pt,
 }
 
-impl Default for TextOutline {
+impl Default for LineStyle {
     fn default() -> Self {
         Self {
             color: Rgb {

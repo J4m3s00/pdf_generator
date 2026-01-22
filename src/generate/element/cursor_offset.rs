@@ -45,5 +45,10 @@ impl Element2 for CursorOffset {
                 font_height_offset,
             } => Pt(*lines as f32 * (font_size.0 + font_height_offset.0)),
         });
+
+        // TODO: Maybe this should be handled on every case
+        if let Self::LineBreaks { .. } = self {
+            builder.reset_cursor_x();
+        }
     }
 }

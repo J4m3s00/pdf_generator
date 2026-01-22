@@ -3,7 +3,7 @@ use printpdf::{FontId, Mm, PaintMode, Point, Polygon, Pt, Rect};
 use crate::generate::{
     document::DocumentStyle,
     element::{Element, Element2, element_builder::ColumnWidth},
-    outline::TextOutline,
+    outline::LineStyle,
     padding::Padding,
     text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE, shape_text},
 };
@@ -155,7 +155,7 @@ impl Element2 for CheckboxGroup {
             let (mut box_builder, mut text_builder) = left
                 .generate_column_builder(ColumnWidth::Fixed(Mm::from(self.font_size + Pt(4.0))));
 
-            box_builder.push_square(self.font_size);
+            box_builder.draw_rect(self.font_size);
 
             text_builder.push_paragraph(
                 item.as_str(),
@@ -176,5 +176,7 @@ impl Element2 for CheckboxGroup {
         }
 
         builder.merge(group_builder);
+
+        builder.advance_cursor(self.calculate_height(builder).into_pt());
     }
 }
