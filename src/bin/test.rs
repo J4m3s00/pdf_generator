@@ -4,8 +4,8 @@ use pdf_generator::generate::{
     TOPOL_OTF,
     document_builder::DocumentBuilder,
     element::{
-        checkbox_group::CheckboxGroup, element_builder::ElementBuilder, group::Group,
-        paragraph::Paragraph,
+        checkbox_group::CheckboxGroup, cursor_offset::CursorOffset,
+        element_builder::ElementBuilder, group::Group, paragraph::Paragraph,
     },
     outline::TextOutline,
     padding::Padding,
@@ -41,12 +41,22 @@ fn main() {
         .with_outline(TextOutline::default())
         .with_padding(Padding::new(Mm(10.0), Mm(20.0), Mm(30.0), Mm(40.0)));
 
-    group.push(Paragraph::new(
+    let mut inner_group = Group::new()
+        .with_try_keep_together(true)
+        .with_outline(TextOutline::default())
+        .with_padding(Padding::none());
+
+    inner_group.push(Paragraph::new(
         include_str!("../../lorem_short.txt"),
         font.clone(),
     ));
 
+    group.push(inner_group);
+
     doc.push(group);
+
+    // doc.push(CursorOffset::Relative(DEFAULT_FONT_LINE_HEIGHT_OFFSET));
+    // doc.push(CursorOffset::line_breaks(3));
 
     let checkbox_group = CheckboxGroup::new(
         vec![

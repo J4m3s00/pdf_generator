@@ -594,6 +594,20 @@ impl<'a> ElementBuilder<'a> {
         }
     }
 
+    /// Advances the cursor on the y axis
+    pub fn advance_cursor(&mut self, dy: Pt) {
+        let remaining_height = self.remaining_height_from_cursor().into_pt();
+        if dy > remaining_height {
+            // We need to go to the next page
+            self.next_page();
+            let rest = dy - remaining_height;
+            self.cursor.y -= rest;
+        } else {
+            self.cursor.y -= dy;
+        }
+    }
+
+    /// Sets the cursor y position
     pub fn update_cursor(&mut self, y: Pt) {
         self.cursor.y = y;
     }
