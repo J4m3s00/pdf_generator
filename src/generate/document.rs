@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{io, path::Path};
 
 use printpdf::{
     FontId, ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
@@ -6,7 +6,7 @@ use printpdf::{
 };
 
 use crate::generate::{
-    element::{BuildResult, Element, Element2, element_builder::ElementBuilder},
+    element::{BuildResult, Element, Element2, element_builder::ElementBuilder, image::Image},
     padding::Padding,
 };
 
@@ -146,6 +146,16 @@ impl Document {
         });
     }
 
+    pub fn save_to_disk(self) -> io::Result<()> {
+        let (data, warnings) = self.save();
+
+        for warn in warnings {
+            println!("[{:?}] {}", warn.severity, warn.msg);
+        }
+
+        std::fs::write(Path::new("test.pdf"), data)
+    }
+
     pub fn save(self) -> (Vec<u8>, Vec<PdfWarnMsg>) {
         let generated = self.generate_document();
         let mut warn_messages = Vec::new();
@@ -166,7 +176,29 @@ impl Document {
     }
 
     pub fn generate_document(mut self) -> PdfDocument {
+        // If we have a footer, reserve space for it
+        if let Some(footer_img) = &self.footer_img {
+            let measure_builder = ElementBuilder::new(&self);
+            let img = Image::new(footer_img.xobject_id.clone(), Some(self.style.width));
+            let (_, img_height) = measure_builder.measure_image(&img);
+            self.style.padding.bottom += Mm::from(img_height);
+        }
+
         let mut current_builder = ElementBuilder::new(&self);
+        // Insert header image
+        if let Some(header_image) = &self.header_img {
+            let img = Image::new(header_image.xobject_id.clone(), Some(self.style.width));
+            let (_, img_height) = current_builder.measure_image(&img);
+
+            current_builder.advance_cursor(img_height);
+            current_builder
+                .pages
+                .first_mut()
+                .expect("We have at least one page")
+                .extend(self.generate_header_ops());
+        }
+        let footer_ops = self.generate_footer_ops();
+
         for element in &self.elements {
             element.build(&mut current_builder);
         }
@@ -174,7 +206,10 @@ impl Document {
         let pages = current_builder
             .pages
             .into_iter()
-            .map(|page| PdfPage::new(self.style.width, self.style.height, page))
+            .map(|mut page| {
+                page.extend_from_slice(&footer_ops);
+                PdfPage::new(self.style.width, self.style.height, page)
+            })
             .collect();
 
         self.pdf_document.with_pages(pages);
