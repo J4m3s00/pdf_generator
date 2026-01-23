@@ -1,4 +1,7 @@
-use std::{io, path::Path};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 use printpdf::{
     FontId, ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
@@ -158,7 +161,8 @@ impl Document {
     /// Saves the document to disk at the specified path.
     ///
     /// If the path is a directory, the document will be saved with its title as the filename.
-    pub fn save_to_disk(self, path: &Path) -> io::Result<()> {
+    pub fn save_to_disk(self, path: impl AsRef<Path>) -> io::Result<()> {
+        let path = path.as_ref();
         let output_path = if path.is_dir() {
             path.join(Path::new(&format!(
                 "{}.pdf",
