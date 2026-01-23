@@ -200,7 +200,7 @@ impl Document {
             let (_, img_height) = current_builder.measure_image(&img);
 
             println!("Header height: {:?}", img_height);
-            // current_builder.advance_cursor(img_height);
+            current_builder.advance_cursor(img_height);
             current_builder
                 .pages
                 .first_mut()
