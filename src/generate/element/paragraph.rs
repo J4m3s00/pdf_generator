@@ -1,7 +1,7 @@
-use printpdf::{FontId, Mm, PdfDocument, Point, Pt};
+use printpdf::{FontId, Mm, Pt};
 
 use crate::generate::{
-    element::{Element2, element_builder::ElementBuilder},
+    element::{Element, element_builder::ElementBuilder},
     text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE},
 };
 
@@ -29,7 +29,7 @@ impl Paragraph {
     }
 }
 
-impl Element2 for Paragraph {
+impl Element for Paragraph {
     fn display_name(&self) -> &str {
         "Paragraph"
     }

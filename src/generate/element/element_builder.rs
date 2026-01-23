@@ -6,7 +6,7 @@ use printpdf::{
 };
 
 use crate::generate::document::Document;
-use crate::generate::element::Element2;
+use crate::generate::element::Element;
 use crate::generate::element::image::Image;
 use crate::generate::outline::LineStyle;
 use crate::generate::padding::Padding;
@@ -231,7 +231,7 @@ impl<'a> ElementBuilder<'a> {
 
     pub fn calculate_flex_height<'element>(
         &self,
-        elements: impl IntoIterator<Item = Box<&'element (impl Element2 + 'element)>>,
+        elements: impl IntoIterator<Item = Box<&'element (impl Element + 'element)>>,
         space_x: Mm,
         space_y: Mm,
     ) -> Mm {
@@ -268,7 +268,7 @@ impl<'a> ElementBuilder<'a> {
     /// Flex will try and order elements on the x axis first, before going to the next line.
     pub fn push_flex<'e>(
         &mut self,
-        elements: impl Iterator<Item = Box<&'e (impl Element2 + 'e)>>,
+        elements: impl Iterator<Item = Box<&'e (impl Element + 'e)>>,
         space_x: Mm,
         space_y: Mm,
     ) {
@@ -353,16 +353,6 @@ impl<'a> ElementBuilder<'a> {
             .extend(ops.into_iter());
 
         self.cursor.x += final_width;
-    }
-
-    /// Currently the prefix is just a box.
-    pub fn push_text_with_prefix(
-        &mut self,
-        text: &str,
-        font: FontId,
-        font_size: Pt,
-        font_height_offset: Pt,
-    ) {
     }
 
     pub fn generate_column_builder(

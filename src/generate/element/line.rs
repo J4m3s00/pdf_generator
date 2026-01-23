@@ -1,6 +1,6 @@
 use printpdf::Mm;
 
-use crate::generate::{element::Element2, outline::LineStyle, padding::Padding};
+use crate::generate::{element::Element, outline::LineStyle, padding::Padding};
 
 pub struct Line {
     outline: LineStyle,
@@ -13,7 +13,7 @@ impl Line {
     }
 }
 
-impl Element2 for Line {
+impl Element for Line {
     fn display_name(&self) -> &str {
         "Line"
     }

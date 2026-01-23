@@ -1,7 +1,7 @@
 use printpdf::{Mm, Pt};
 
 use crate::generate::{
-    element::Element2,
+    element::Element,
     text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE},
 };
 
@@ -25,7 +25,7 @@ impl CursorOffset {
     }
 }
 
-impl Element2 for CursorOffset {
+impl Element for CursorOffset {
     fn display_name(&self) -> &str {
         "Cursor Offset"
     }

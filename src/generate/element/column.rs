@@ -1,7 +1,7 @@
 use printpdf::Mm;
 
 use crate::generate::{
-    element::{Element2, element_builder::ColumnWidth},
+    element::{Element, element_builder::ColumnWidth},
     text_gen::LEFT_WIDTH,
 };
 
@@ -11,16 +11,16 @@ pub enum LeftWidth {
 }
 
 pub struct Column {
-    pub right: Box<dyn Element2>,
-    pub left: Box<dyn Element2>,
+    pub right: Box<dyn Element>,
+    pub left: Box<dyn Element>,
     pub left_width: ColumnWidth,
 }
 
 impl Column {
     pub fn new<Left, Right>(left: Left, right: Right) -> Self
     where
-        Left: Element2 + 'static,
-        Right: Element2 + 'static,
+        Left: Element + 'static,
+        Right: Element + 'static,
     {
         Column {
             left_width: ColumnWidth::Fixed(LEFT_WIDTH),
@@ -29,7 +29,7 @@ impl Column {
         }
     }
 
-    pub fn new_with_box(left: Box<dyn Element2>, right: Box<dyn Element2>) -> Self {
+    pub fn new_with_box(left: Box<dyn Element>, right: Box<dyn Element>) -> Self {
         Self {
             left,
             right,
@@ -43,7 +43,7 @@ impl Column {
     }
 }
 
-impl Element2 for Column {
+impl Element for Column {
     fn display_name(&self) -> &str {
         "Column"
     }

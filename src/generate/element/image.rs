@@ -1,9 +1,6 @@
-use printpdf::{Mm, Op, Point, Px, XObject, XObjectId, XObjectTransform};
+use printpdf::{Mm, XObjectId};
 
-use crate::generate::{
-    document::DocumentStyle,
-    element::{Element, Element2},
-};
+use crate::generate::element::Element;
 
 pub struct Image {
     pub image: XObjectId,
@@ -19,7 +16,7 @@ impl Image {
     }
 }
 
-impl Element2 for Image {
+impl Element for Image {
     fn display_name(&self) -> &str {
         "Image"
     }

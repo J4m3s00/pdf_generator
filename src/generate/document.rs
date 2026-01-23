@@ -1,7 +1,4 @@
-use std::{
-    io,
-    path::{Path, PathBuf},
-};
+use std::{io, path::Path};
 
 use printpdf::{
     FontId, ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
@@ -9,7 +6,7 @@ use printpdf::{
 };
 
 use crate::generate::{
-    element::{BuildResult, Element, Element2, element_builder::ElementBuilder, image::Image},
+    element::{Element, element_builder::ElementBuilder, image::Image},
     padding::Padding,
 };
 
@@ -53,7 +50,7 @@ impl Page {
 pub struct Document {
     pdf_document: PdfDocument,
 
-    pub elements: Vec<Box<dyn Element2>>,
+    pub elements: Vec<Box<dyn Element>>,
     style: DocumentStyle,
 
     footer_img: Option<DocumentImage>,
@@ -88,34 +85,38 @@ impl Document {
 
     pub fn push<E>(&mut self, element: E)
     where
-        E: Element2 + 'static,
+        E: Element + 'static,
     {
         self.elements.push(Box::new(element));
     }
 
-    pub fn push_boxed(&mut self, element: Box<dyn Element2>) {
+    pub fn push_boxed(&mut self, element: Box<dyn Element>) {
         self.elements.push(element);
     }
 
     /// Loads and adds a new font
     ///
     /// If this is the first font added, it will be set as the default font
-    pub fn add_font(&mut self, font_data: &[u8]) -> FontId {
+    pub fn add_font(&mut self, font_data: &[u8], index: usize) -> io::Result<FontId> {
         let mut warnings = Vec::new();
 
-        let parsed_font = ParsedFont::from_bytes(font_data, 0, &mut warnings);
+        let Some(parsed_font) = ParsedFont::from_bytes(font_data, index, &mut warnings) else {
+            let message = warnings
+                .into_iter()
+                .map(|warn| format!("[{:?}] {}", warn.severity, warn.msg))
+                .collect::<Vec<_>>()
+                .join("\n");
 
-        for warn in warnings {
-            println!("[{:?}] {}", warn.severity, warn.msg);
-        }
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, message));
+        };
 
-        let res = self.pdf_document.add_font(&parsed_font.unwrap());
+        let res = self.pdf_document.add_font(&parsed_font);
 
         if self.default_font.is_none() {
             self.default_font = Some(res.clone());
         }
 
-        res
+        Ok(res)
     }
 
     pub fn get_default_font(&self) -> FontId {

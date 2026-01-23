@@ -1,9 +1,9 @@
 use printpdf::Mm;
 
-use crate::generate::{element::Element2, outline::LineStyle, padding::Padding};
+use crate::generate::{element::Element, outline::LineStyle, padding::Padding};
 
 pub struct Group {
-    pub elements: Vec<Box<dyn Element2>>,
+    pub elements: Vec<Box<dyn Element>>,
     pub outline: Option<LineStyle>,
     pub padding: Padding,
     pub try_keep_together: bool,
@@ -26,7 +26,7 @@ impl Group {
 
     pub fn push<E>(&mut self, element: E)
     where
-        E: Element2 + 'static,
+        E: Element + 'static,
     {
         self.elements.push(Box::new(element));
     }
@@ -42,7 +42,7 @@ impl Group {
     }
 }
 
-impl Element2 for Group {
+impl Element for Group {
     fn display_name(&self) -> &str {
         "Group"
     }

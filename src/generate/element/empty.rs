@@ -1,21 +1,21 @@
 use printpdf::Mm;
 
-use crate::generate::{document::DocumentStyle, element::Element};
+use crate::generate::element::Element;
 
 pub struct Empty;
 
 impl Element for Empty {
-    fn build(
-        &self,
-        _document: &printpdf::PdfDocument,
-        origin: printpdf::Point,
-        _max_width: Option<printpdf::Mm>,
-        _page_style: &DocumentStyle,
-    ) -> super::BuildResult {
-        super::BuildResult {
-            ops: Vec::new(),
-            next_cursor: origin,
-            width: Mm(0.0),
-        }
+    fn display_name(&self) -> &str {
+        "Empty"
     }
+
+    fn calculate_height<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
+        Mm(0.0)
+    }
+
+    fn calculate_width<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
+        Mm(0.0)
+    }
+
+    fn build<'a>(&self, _: &mut super::element_builder::ElementBuilder<'a>) {}
 }

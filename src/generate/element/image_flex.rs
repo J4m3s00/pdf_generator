@@ -1,8 +1,7 @@
-use printpdf::{Mm, Op, Pt, Px, XObject, XObjectTransform};
+use printpdf::Mm;
 
 use crate::generate::{
-    document::DocumentStyle,
-    element::{Element, Element2, image::Image},
+    element::{Element, image::Image},
     padding::Padding,
 };
 
@@ -36,7 +35,7 @@ impl ImageFlex {
     }
 }
 
-impl Element2 for ImageFlex {
+impl Element for ImageFlex {
     fn display_name(&self) -> &str {
         "Image Flex"
     }

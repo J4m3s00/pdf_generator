@@ -1,11 +1,10 @@
-use printpdf::{Mm, Op, PdfDocument, Point};
+use printpdf::{Mm, Op, Point};
 
-use crate::generate::{document::DocumentStyle, element::element_builder::ElementBuilder};
+use crate::generate::element::element_builder::ElementBuilder;
 
 pub mod checkbox_group;
 pub mod column;
 pub mod cursor_offset;
-pub mod custom;
 pub mod element_builder;
 pub mod empty;
 pub mod group;
@@ -21,16 +20,6 @@ pub struct BuildResult {
 }
 
 pub trait Element {
-    fn build(
-        &self,
-        document: &PdfDocument,
-        origin: Point,
-        max_width: Option<Mm>,
-        page_style: &DocumentStyle,
-    ) -> BuildResult;
-}
-
-pub trait Element2 {
     fn display_name(&self) -> &str;
 
     fn calculate_width<'a>(&self, builder: &ElementBuilder<'a>) -> Mm;
