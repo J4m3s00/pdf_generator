@@ -26,6 +26,14 @@ impl CursorOffset {
 }
 
 impl Element2 for CursorOffset {
+    fn display_name(&self) -> &str {
+        "Cursor Offset"
+    }
+
+    fn calculate_width<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
+        Mm(0.0)
+    }
+
     fn calculate_height<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
         match self {
             Self::Relative(rel) => Mm::from(*rel),
@@ -36,6 +44,7 @@ impl Element2 for CursorOffset {
             } => Mm::from(Pt(*lines as f32 * (font_size.0 + font_height_offset.0))),
         }
     }
+
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
         builder.advance_cursor(match self {
             Self::Relative(rel) => *rel,

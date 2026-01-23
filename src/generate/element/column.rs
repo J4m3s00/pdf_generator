@@ -44,6 +44,13 @@ impl Column {
 }
 
 impl Element2 for Column {
+    fn display_name(&self) -> &str {
+        "Column"
+    }
+
+    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+        builder.remaining_width_from_cursor()
+    }
     fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
         let (left_builder, right_builder) = builder.generate_column_builder(self.left_width);
 

@@ -31,6 +31,9 @@ pub trait Element {
 }
 
 pub trait Element2 {
+    fn display_name(&self) -> &str;
+
+    fn calculate_width<'a>(&self, builder: &ElementBuilder<'a>) -> Mm;
     fn calculate_height<'a>(&self, builder: &ElementBuilder<'a>) -> Mm;
     fn build<'a>(&self, builder: &mut ElementBuilder<'a>);
 }

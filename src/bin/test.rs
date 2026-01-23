@@ -4,19 +4,13 @@ use pdf_generator::generate::{
     TOPOL_OTF,
     document_builder::DocumentBuilder,
     element::{
-        checkbox_group::CheckboxGroup,
-        column::Column,
-        cursor_offset::CursorOffset,
-        element_builder::{ColumnWidth, ElementBuilder},
-        group::Group,
-        line::Line,
-        paragraph::Paragraph,
+        checkbox_group::CheckboxGroup, column::Column, element_builder::ColumnWidth, group::Group,
+        image::Image, image_flex::ImageFlex, line::Line, paragraph::Paragraph,
     },
     outline::LineStyle,
     padding::Padding,
-    text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE},
 };
-use printpdf::Mm;
+use printpdf::{Mm, RawImage};
 
 fn main() {
     let mut doc = DocumentBuilder::new("Test").build();
@@ -28,6 +22,27 @@ fn main() {
     );
 
     doc.push(new_line_paragraph);
+
+    let raw_image_1 = doc.add_image(
+        RawImage::decode_from_bytes(include_bytes!("../../pic1.png"), &mut Vec::new()).unwrap(),
+    );
+    let raw_image_2 = doc.add_image(
+        RawImage::decode_from_bytes(include_bytes!("../../pic2.png"), &mut Vec::new()).unwrap(),
+    );
+    let raw_image_3 = doc.add_image(
+        RawImage::decode_from_bytes(include_bytes!("../../pic3.png"), &mut Vec::new()).unwrap(),
+    );
+
+    let mut image_flex = ImageFlex::new()
+        .with_space_x(Mm(80.0))
+        .with_space_y(Mm(5.0));
+
+    image_flex.push(Image::new(raw_image_2.clone(), Some(Mm(70.0))));
+    image_flex.push(Image::new(raw_image_1, Some(Mm(70.0))));
+    image_flex.push(Image::new(raw_image_2.clone(), Some(Mm(70.0))));
+    image_flex.push(Image::new(raw_image_3, Some(Mm(70.0))));
+
+    doc.push(image_flex);
 
     let mut group = Group::new()
         .with_try_keep_together(true)
@@ -59,9 +74,6 @@ fn main() {
     group.push(inner_group);
 
     doc.push(group);
-
-    // doc.push(CursorOffset::Relative(DEFAULT_FONT_LINE_HEIGHT_OFFSET));
-    // doc.push(CursorOffset::line_breaks(3));
 
     let checkbox_group = CheckboxGroup::new(
         vec![

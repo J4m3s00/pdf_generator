@@ -1,9 +1,8 @@
 use printpdf::{FontId, Mm, PdfDocument, Point, Pt};
 
 use crate::generate::{
-    document::DocumentStyle,
-    element::{BuildResult, Element, Element2, element_builder::ElementBuilder},
-    text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE, shape_text},
+    element::{Element2, element_builder::ElementBuilder},
+    text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE},
 };
 
 pub struct Paragraph {
@@ -30,38 +29,24 @@ impl Paragraph {
     }
 }
 
-impl Element for Paragraph {
-    fn build(
-        &self,
-        document: &PdfDocument,
-        origin: Point,
-        max_width: Option<Mm>,
-        _page_style: &DocumentStyle,
-    ) -> BuildResult {
-        let shaped_text = shape_text(
-            document,
-            self.font.clone(),
-            self.font_size,
-            self.font_height_offset,
-            &self.text,
-            max_width,
-        );
-
-        let ops = shaped_text.get_ops(origin);
-        let next_cursor = Point {
-            x: origin.x,
-            y: origin.y - Pt(shaped_text.height),
-        };
-
-        BuildResult {
-            ops,
-            next_cursor,
-            width: Mm::from(Pt(shaped_text.width)),
-        }
-    }
-}
-
 impl Element2 for Paragraph {
+    fn display_name(&self) -> &str {
+        "Paragraph"
+    }
+
+    fn calculate_width<'a>(&self, builder: &ElementBuilder<'a>) -> Mm {
+        Mm::from(
+            builder
+                .measure_text(
+                    self.text.as_str(),
+                    self.font.clone(),
+                    self.font_size,
+                    self.font_height_offset,
+                )
+                .0,
+        )
+    }
+
     fn calculate_height<'a>(&self, builder: &ElementBuilder<'a>) -> Mm {
         Mm::from(
             builder

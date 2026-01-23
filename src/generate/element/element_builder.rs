@@ -1,8 +1,13 @@
 use std::collections::VecDeque;
 
-use printpdf::{FontId, Line, LinePoint, Mm, Op, PaintMode, Point, Polygon, Pt, Rect, ShapedText};
+use printpdf::{
+    FontId, Line, LinePoint, Mm, Op, PaintMode, Point, Polygon, Pt, Px, Rect, ShapedText, XObject,
+    XObjectTransform,
+};
 
 use crate::generate::document::Document;
+use crate::generate::element::Element2;
+use crate::generate::element::image::Image;
 use crate::generate::outline::LineStyle;
 use crate::generate::padding::Padding;
 use crate::generate::text_gen::{shape_text, split_shaped_text};
@@ -34,6 +39,7 @@ pub struct ElementBuilder<'a> {
     starting_page: usize,
     pub pages: Vec<Vec<Op>>,
     added_padding_bottom: Mm,
+    errors: Vec<String>,
 }
 
 impl<'a> ElementBuilder<'a> {
@@ -52,6 +58,7 @@ impl<'a> ElementBuilder<'a> {
             starting_page: 0,
             pages: vec![Vec::new()],
             added_padding_bottom: Mm(0.0),
+            errors: Vec::new(),
         }
     }
 }
@@ -74,6 +81,32 @@ impl<'a> ElementBuilder<'a> {
         );
 
         (Pt(shaped_text.width), Pt(shaped_text.height))
+    }
+
+    pub fn measure_image(&self, image: &Image) -> (Pt, Pt) {
+        let XObject::Image(raw_image) = self
+            .document
+            .pdf_document()
+            .resources
+            .xobjects
+            .map
+            .get(&image.image)
+            .expect("Image not found in document resources")
+        else {
+            panic!("Expected XObject to be an Image");
+        };
+
+        let width = Px(raw_image.width).into_pt(300.0);
+        let height = Px(raw_image.height).into_pt(300.0);
+
+        let scale = image
+            .desired_width
+            .map(|desired_width| desired_width.into_pt() / width);
+
+        let final_width = scale.map(|scale| width * scale).unwrap_or(width);
+        let final_height = scale.map(|scale| height * scale).unwrap_or(height);
+
+        (final_width, final_height)
     }
 
     pub fn push_paragraph(
@@ -196,6 +229,132 @@ impl<'a> ElementBuilder<'a> {
         self.advance_cursor(padding.bottom.into_pt());
     }
 
+    pub fn calculate_flex_height<'element>(
+        &self,
+        elements: impl IntoIterator<Item = Box<&'element (impl Element2 + 'element)>>,
+        space_x: Mm,
+        space_y: Mm,
+    ) -> Mm {
+        let remaining_width = self.remaining_width_from_cursor();
+
+        let mut x_cursor = self.cursor.x;
+        let mut current_measured_height = Mm(0.0);
+        let mut current_line_height = Mm(0.0);
+
+        for element in elements.into_iter() {
+            let width = element.calculate_width(self);
+            if width > remaining_width {
+                // The element wont fit at all. We skip it. In the rendering, we will generate an
+                // error
+                continue;
+            }
+
+            let x_offset = Mm::from(x_cursor - self.origin.x);
+            let current_remaining_width = remaining_width - x_offset;
+            if width > current_remaining_width {
+                // Push to next line
+                x_cursor = self.origin.x;
+                current_measured_height += current_line_height + space_y;
+                current_line_height = Mm(0.0);
+            }
+            x_cursor += (width + space_x).into_pt();
+
+            current_line_height = current_line_height.max(element.calculate_height(self));
+        }
+
+        current_line_height + current_measured_height
+    }
+
+    /// Flex will try and order elements on the x axis first, before going to the next line.
+    pub fn push_flex<'e>(
+        &mut self,
+        elements: impl Iterator<Item = Box<&'e (impl Element2 + 'e)>>,
+        space_x: Mm,
+        space_y: Mm,
+    ) {
+        let remaining_width = self.remaining_width_from_cursor();
+
+        let mut current_line_height = Mm(0.0);
+        for element in elements {
+            let width = element.calculate_width(self);
+            let height = element.calculate_height(self);
+            if width > remaining_width {
+                // This element wont fit at all. We skip it. Also we generate an error
+                self.errors.push(format!(
+                    "Failed to generate flex item \"{}\"",
+                    element.display_name()
+                ));
+                continue;
+            }
+
+            if width > self.remaining_width_from_cursor() {
+                // Go to the next line
+                self.advance_cursor((current_line_height + space_y).into_pt());
+                self.reset_cursor_x();
+                current_line_height = Mm(0.0);
+            }
+
+            if height > self.remaining_height_from_cursor() {
+                self.reset_cursor_x();
+                self.next_page();
+                current_line_height = Mm(0.0);
+            }
+
+            current_line_height = current_line_height.max(height);
+
+            element.build(self);
+
+            self.cursor.x += space_x.into_pt();
+        }
+
+        self.advance_cursor(current_line_height.into_pt());
+        self.reset_cursor_x();
+    }
+
+    pub fn push_image(&mut self, image: &Image) {
+        let XObject::Image(raw_image) = self
+            .document
+            .pdf_document()
+            .resources
+            .xobjects
+            .map
+            .get(&image.image)
+            .expect("Image not found in document resources")
+        else {
+            panic!("Expected XObject to be an Image");
+        };
+
+        let width = Px(raw_image.width).into_pt(300.0);
+        let height = Px(raw_image.height).into_pt(300.0);
+
+        let scale = image
+            .desired_width
+            .map(|desired_width| desired_width.into_pt() / width);
+
+        let final_width = scale.map(|scale| width * scale).unwrap_or(width);
+        let final_height = scale.map(|scale| height * scale).unwrap_or(height);
+
+        let transform = XObjectTransform {
+            translate_x: Some(self.cursor.x),
+            translate_y: Some(self.cursor.y - final_height),
+            scale_x: scale,
+            scale_y: scale,
+            ..Default::default()
+        };
+
+        let ops = vec![Op::UseXobject {
+            id: image.image.clone(),
+            transform,
+        }];
+
+        self.pages
+            .last_mut()
+            .expect("We always have one page")
+            .extend(ops.into_iter());
+
+        self.cursor.x += final_width;
+    }
+
     /// Currently the prefix is just a box.
     pub fn push_text_with_prefix(
         &mut self,
@@ -223,6 +382,7 @@ impl<'a> ElementBuilder<'a> {
             starting_page: self.pages.len() - 1,
             pages: vec![Vec::new()],
             added_padding_bottom: Mm(0.0),
+            errors: Vec::new(),
         };
         let right_origin = Point {
             x: self.cursor.x + left_width.into_pt(),
@@ -237,6 +397,7 @@ impl<'a> ElementBuilder<'a> {
             starting_page: self.pages.len() - 1,
             pages: vec![Vec::new()],
             added_padding_bottom: Mm(0.0),
+            errors: Vec::new(),
         };
 
         (left_builder, right_builder)
@@ -287,6 +448,7 @@ impl<'a> ElementBuilder<'a> {
             starting_page: self.pages.len() - if new_page { 0 } else { 1 },
             pages: vec![Vec::new()],
             added_padding_bottom: padding.bottom,
+            errors: Vec::new(),
         }
     }
 
@@ -650,7 +812,7 @@ impl<'a> ElementBuilder<'a> {
         Mm::from(self.cursor.y) - self.document.style().padding.bottom - self.added_padding_bottom
     }
 
-    fn remaining_width_from_cursor(&self) -> Mm {
+    pub fn remaining_width_from_cursor(&self) -> Mm {
         let x_offset = Mm::from(self.cursor.x - self.origin.x);
         self.remaining_width - x_offset
     }
@@ -683,5 +845,7 @@ impl<'a> ElementBuilder<'a> {
         while let Some(next) = dequeue.pop_front() {
             self.pages.push(next);
         }
+
+        self.errors.extend(other.errors);
     }
 }
