@@ -94,10 +94,19 @@ impl Document {
         self.elements.push(element);
     }
 
+    /// Loads and adds a new font
+    ///
+    /// If this is the first font added, it will be set as the default font
     pub fn add_font(&mut self, font_data: &[u8]) -> FontId {
-        let res = self
-            .pdf_document
-            .add_font(&ParsedFont::from_bytes(font_data, 0, &mut Vec::new()).unwrap());
+        let mut warnings = Vec::new();
+
+        let parsed_font = ParsedFont::from_bytes(font_data, 0, &mut warnings);
+
+        for warn in warnings {
+            println!("[{:?}] {}", warn.severity, warn.msg);
+        }
+
+        let res = self.pdf_document.add_font(&parsed_font.unwrap());
 
         if self.default_font.is_none() {
             self.default_font = Some(res.clone());
