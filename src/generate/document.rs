@@ -155,14 +155,26 @@ impl Document {
         });
     }
 
-    pub fn save_to_disk(self) -> io::Result<()> {
+    /// Saves the document to disk at the specified path.
+    ///
+    /// If the path is a directory, the document will be saved with its title as the filename.
+    pub fn save_to_disk(self, path: &Path) -> io::Result<()> {
+        let output_path = if path.is_dir() {
+            path.join(Path::new(&format!(
+                "{}.pdf",
+                &self.pdf_document.metadata.info.document_title
+            )))
+        } else {
+            path.to_path_buf()
+        };
+
         let (data, warnings) = self.save();
 
         for warn in warnings {
             println!("[{:?}] {}", warn.severity, warn.msg);
         }
 
-        std::fs::write(Path::new("test.pdf"), data)
+        std::fs::write(output_path, data)
     }
 
     pub fn save(self) -> (Vec<u8>, Vec<PdfWarnMsg>) {
