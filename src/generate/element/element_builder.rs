@@ -32,7 +32,7 @@ pub enum ColumnWidth {
 }
 
 pub struct ElementBuilder<'a> {
-    document: &'a Document,
+    pub(crate) document: &'a Document,
     origin: Point,
     pub cursor: Point,
     remaining_width: Mm,
@@ -837,5 +837,70 @@ impl<'a> ElementBuilder<'a> {
         }
 
         self.errors.extend(other.errors);
+    }
+
+    pub fn push_rich_text(&mut self, rich_text: &crate::generate::element::rich_text::RichText) {
+        let mut current_line_height = Pt(0.0);
+        for item in &rich_text.parts {
+            if item.0.is_empty() {
+                continue;
+            }
+
+            let shaped_text = shape_text(
+                self.document.pdf_document(),
+                item.1.clone(),
+                rich_text.font_size,
+                rich_text.font_height_offset,
+                &item.0,
+                Some(self.remaining_width_from_cursor()),
+            );
+
+            let first_line_text = shaped_text
+                .lines
+                .first()
+                .expect("For now")
+                .words
+                .iter()
+                .map(|w| w.text.as_str())
+                .collect::<Vec<_>>()
+                .join("");
+
+            let rest_text = &item.0[first_line_text.len()..item.0.len()];
+
+            let first_line_shaped = shape_text(
+                self.document.pdf_document(),
+                item.1.clone(),
+                rich_text.font_size,
+                rich_text.font_height_offset,
+                &first_line_text,
+                None,
+            );
+
+            current_line_height = current_line_height.max(Pt(first_line_shaped.height));
+
+            self.pages
+                .last_mut()
+                .expect("Always have one page")
+                .extend(first_line_shaped.get_ops(self.cursor));
+
+            if shaped_text.lines.len() > 1 {
+                self.reset_cursor_x();
+                self.advance_cursor(current_line_height);
+            }
+
+            let rest_shaped = shape_text(
+                self.document.pdf_document(),
+                item.1.clone(),
+                rich_text.font_size,
+                rich_text.font_height_offset,
+                rest_text,
+                Some(self.remaining_width_from_cursor()),
+            );
+
+            self.pages
+                .last_mut()
+                .expect("Always have one page")
+                .extend(rest_shaped.get_ops(self.cursor));
+        }
     }
 }
