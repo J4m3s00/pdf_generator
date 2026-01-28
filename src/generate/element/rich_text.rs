@@ -9,7 +9,19 @@ pub struct RichText {
     pub(crate) font_height_offset: Pt,
 }
 
-impl RichText {}
+impl RichText {
+    pub fn new(
+        parts: impl Into<Vec<(String, FontId)>>,
+        font_size: Pt,
+        font_height_offset: Pt,
+    ) -> Self {
+        Self {
+            parts: parts.into(),
+            font_size,
+            font_height_offset,
+        }
+    }
+}
 
 impl Element for RichText {
     fn display_name(&self) -> &str {
