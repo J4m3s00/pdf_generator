@@ -894,7 +894,7 @@ impl<'a> ElementBuilder<'a> {
 
             let last_line_shaped = if shaped_text.lines.len() > 1 {
                 self.reset_cursor_x();
-                self.advance_cursor(current_line_height * (shaped_text.lines.len() - 1) as f32);
+                self.advance_cursor(current_line_height);
 
                 let last_line_text = rest_shaped
                     .lines
@@ -923,6 +923,7 @@ impl<'a> ElementBuilder<'a> {
                 .expect("Always have one page")
                 .extend(rest_shaped.get_ops(self.cursor));
 
+            self.advance_cursor(Pt(rest_shaped.height));
             self.cursor.x += Pt(last_line_shaped.width)
         }
     }
