@@ -128,7 +128,13 @@ impl<'a> ElementBuilder<'a> {
         self.push_shaped_text(shaped_text, font_size, font_height_offset);
     }
 
-    fn push_shaped_text(&mut self, text: ShapedText, font_size: Pt, font_height_offset: Pt) {
+    /// Returning the last shaped text that didn't fit
+    fn push_shaped_text(
+        &mut self,
+        text: ShapedText,
+        font_size: Pt,
+        font_height_offset: Pt,
+    ) -> ShapedText {
         // Do we need to cut the text?
         let (first, rest) = split_shaped_text(
             text,
@@ -146,7 +152,9 @@ impl<'a> ElementBuilder<'a> {
 
         if let Some(rest) = rest {
             self.next_page();
-            self.push_shaped_text(rest, font_size, font_height_offset);
+            self.push_shaped_text(rest, font_size, font_height_offset)
+        } else {
+            first
         }
     }
 
@@ -918,12 +926,19 @@ impl<'a> ElementBuilder<'a> {
                 first_line_shaped
             };
 
-            self.pages
-                .last_mut()
-                .expect("Always have one page")
-                .extend(rest_shaped.get_ops(self.cursor));
+            // self.pages
+            //     .last_mut()
+            //     .expect("Always have one page")
+            //     .extend(rest_shaped.get_ops(self.cursor));
+            let last_shaped = self.push_shaped_text(
+                rest_shaped,
+                rich_text.font_size,
+                rich_text.font_height_offset,
+            );
 
-            self.advance_cursor(Pt(rest_shaped.height));
+            self.advance_cursor(
+                Pt(last_shaped.height) - rich_text.font_size - rich_text.font_height_offset,
+            );
             self.cursor.x += Pt(last_line_shaped.width)
         }
     }
