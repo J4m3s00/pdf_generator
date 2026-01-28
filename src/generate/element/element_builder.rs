@@ -894,7 +894,7 @@ impl<'a> ElementBuilder<'a> {
 
             let last_line_shaped = if shaped_text.lines.len() > 1 {
                 self.reset_cursor_x();
-                self.advance_cursor(current_line_height);
+                self.advance_cursor(current_line_height * (shaped_text.lines.len() - 1) as f32);
 
                 let last_line_text = rest_shaped
                     .lines
