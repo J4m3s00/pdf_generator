@@ -1,24 +1,13 @@
-use printpdf::{FontId, Pt};
-
-use crate::generate::{element::Element, text_gen::shape_text};
+use crate::generate::{element::Element, font::Font};
 
 pub struct RichText {
-    pub(crate) parts: Vec<(String, FontId)>,
-
-    pub(crate) font_size: Pt,
-    pub(crate) font_height_offset: Pt,
+    pub(crate) parts: Vec<(String, Font)>,
 }
 
 impl RichText {
-    pub fn new(
-        parts: impl Into<Vec<(String, FontId)>>,
-        font_size: Pt,
-        font_height_offset: Pt,
-    ) -> Self {
+    pub fn new(parts: impl Into<Vec<(String, Font)>>) -> Self {
         Self {
             parts: parts.into(),
-            font_size,
-            font_height_offset,
         }
     }
 }
@@ -30,14 +19,14 @@ impl Element for RichText {
 
     fn calculate_width<'a>(
         &self,
-        builder: &super::element_builder::ElementBuilder<'a>,
+        _builder: &super::element_builder::ElementBuilder<'a>,
     ) -> printpdf::Mm {
         unimplemented!()
     }
 
     fn calculate_height<'a>(
         &self,
-        builder: &super::element_builder::ElementBuilder<'a>,
+        _builder: &super::element_builder::ElementBuilder<'a>,
     ) -> printpdf::Mm {
         unimplemented!()
     }

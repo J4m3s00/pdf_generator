@@ -1,4 +1,4 @@
-use printpdf::Mm;
+use printpdf::{Mm, Pt};
 
 use crate::generate::{document::Document, padding::Padding};
 
@@ -16,6 +16,8 @@ pub struct DocumentBuilder {
     format: DocumentFormat,
     orientation: DocumentOrientation,
     padding: Padding,
+    default_font_size: Pt,
+    default_font_height_offset: Pt,
 }
 
 impl DocumentBuilder {
@@ -25,6 +27,8 @@ impl DocumentBuilder {
             format: DocumentFormat::A4,
             orientation: DocumentOrientation::Portrait,
             padding: Padding::xy(Mm(20.0), Mm(15.0)),
+            default_font_size: Pt(9.0),
+            default_font_height_offset: Pt(3.9),
         }
     }
 
@@ -43,9 +47,26 @@ impl DocumentBuilder {
         self
     }
 
+    pub fn default_font_size(mut self, size: Pt) -> Self {
+        self.default_font_size = size;
+        self
+    }
+
+    pub fn default_font_height_offset(mut self, offset: Pt) -> Self {
+        self.default_font_height_offset = offset;
+        self
+    }
+
     pub fn build(self) -> Document {
         let (width, height) = self.orientation.dimensions(self.format.dimensions());
-        Document::new(&self.name, width, height, self.padding)
+        Document::new(
+            &self.name,
+            width,
+            height,
+            self.padding,
+            self.default_font_size,
+            self.default_font_height_offset,
+        )
     }
 }
 

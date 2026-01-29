@@ -1,9 +1,6 @@
 use printpdf::{Mm, Pt};
 
-use crate::generate::{
-    element::Element,
-    text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE},
-};
+use crate::generate::{element::Element, font::Font};
 
 pub enum CursorOffset {
     Relative(Pt),
@@ -16,11 +13,11 @@ pub enum CursorOffset {
 
 impl CursorOffset {
     /// Adds a line break offset with the default font size and font line height offset.
-    pub fn line_breaks(lines: u8) -> Self {
+    pub fn line_breaks(lines: u8, font: &Font) -> Self {
         Self::LineBreaks {
             lines,
-            font_size: DEFAULT_FONT_SIZE,
-            font_height_offset: DEFAULT_FONT_LINE_HEIGHT_OFFSET,
+            font_size: font.font_size(),
+            font_height_offset: font.font_height_offset(),
         }
     }
 }

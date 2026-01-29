@@ -1,10 +1,5 @@
 use printpdf::{FontId, Mm, PdfDocument, Pt, ShapedText, TextShapingOptions};
 
-pub const DEFAULT_FONT_SIZE: Pt = Pt(9.0);
-pub const DEFAULT_FONT_LINE_HEIGHT_OFFSET: Pt = Pt(3.9);
-
-pub const LEFT_WIDTH: Mm = Mm(50.0);
-
 fn space_between_newlines(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut prev_was_nl = false;

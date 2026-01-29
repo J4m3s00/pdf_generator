@@ -1,9 +1,9 @@
-use printpdf::{FontId, Mm, Pt};
+use printpdf::{Mm, Pt};
 
 use crate::generate::{
     element::{Element, element_builder::ColumnWidth},
+    font::Font,
     padding::Padding,
-    text_gen::{DEFAULT_FONT_LINE_HEIGHT_OFFSET, DEFAULT_FONT_SIZE},
 };
 
 pub struct CheckboxGroup {
@@ -11,19 +11,15 @@ pub struct CheckboxGroup {
 
     space_between_checkboxes: Pt,
 
-    font: FontId,
-    font_size: Pt,
-    font_height_offset: Pt,
+    font: Font,
 }
 
 impl CheckboxGroup {
-    pub fn new(checkboxes: Vec<String>, font: FontId) -> Self {
+    pub fn new(checkboxes: Vec<String>, font: Font) -> Self {
         Self {
             checkboxes,
             font,
             space_between_checkboxes: Pt(7.5), // Default space between checkboxes
-            font_size: DEFAULT_FONT_SIZE,
-            font_height_offset: DEFAULT_FONT_LINE_HEIGHT_OFFSET,
         }
     }
 
@@ -51,19 +47,13 @@ impl Element for CheckboxGroup {
             .enumerate()
             .fold(Mm(0.0), move |v, (index, item)| {
                 let (_, text_builder) = left.generate_column_builder(ColumnWidth::Fixed(Mm::from(
-                    self.font_size + Pt(4.0),
+                    self.font.font_size() + Pt(4.0),
                 )));
 
-                let height = self.font_size.max(
-                    text_builder
-                        .measure_text(
-                            item.as_str(),
-                            self.font.clone(),
-                            self.font_size,
-                            self.font_height_offset,
-                        )
-                        .1,
-                );
+                let height = self
+                    .font
+                    .font_size()
+                    .max(text_builder.measure_text(item.as_str(), &self.font).1);
 
                 let column_width =
                     ColumnWidth::Percent(1.0 / (self.checkboxes.len() - index - 1) as f32);
@@ -88,17 +78,13 @@ impl Element for CheckboxGroup {
             .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
 
         for (index, item) in self.checkboxes.iter().enumerate() {
-            let (mut box_builder, mut text_builder) = left
-                .generate_column_builder(ColumnWidth::Fixed(Mm::from(self.font_size + Pt(4.0))));
-
-            box_builder.draw_rect(self.font_size);
-
-            text_builder.push_paragraph(
-                item.as_str(),
-                self.font.clone(),
-                self.font_size,
-                self.font_height_offset,
+            let (mut box_builder, mut text_builder) = left.generate_column_builder(
+                ColumnWidth::Fixed(Mm::from(self.font.font_size() + Pt(4.0))),
             );
+
+            box_builder.draw_rect(self.font.font_size());
+
+            text_builder.push_paragraph(item.as_str(), &self.font);
 
             let column_width =
                 ColumnWidth::Percent(1.0 / (self.checkboxes.len() - index - 1) as f32);

@@ -1,9 +1,8 @@
 use printpdf::Mm;
 
-use crate::generate::{
-    element::{Element, element_builder::ColumnWidth},
-    text_gen::LEFT_WIDTH,
-};
+use crate::generate::element::{Element, element_builder::ColumnWidth};
+
+pub const LEFT_WIDTH: Mm = Mm(50.0);
 
 pub enum LeftWidth {
     Fixed(Mm),

@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
         .padding(Padding::xy(Mm(20.0), Mm(15.0)))
         .build();
 
-    let font = doc.add_font(ROBOTO_FILE, 6)?;
+    let font = doc.add_font(ROBOTO_FILE, None, None)?;
 
     doc.push(Paragraph::new("This is some text", font.clone()));
 

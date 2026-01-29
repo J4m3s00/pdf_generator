@@ -7,6 +7,7 @@ use printpdf::{
 
 use crate::generate::{
     element::{Element, element_builder::ElementBuilder, image::Image},
+    font::Font,
     padding::Padding,
 };
 
@@ -57,10 +58,20 @@ pub struct Document {
     header_img: Option<DocumentImage>,
 
     default_font: Option<FontId>,
+
+    default_font_size: Pt,
+    default_font_height_offset: Pt,
 }
 
 impl Document {
-    pub fn new(name: &str, width: Mm, height: Mm, padding: Padding) -> Self {
+    pub fn new(
+        name: &str,
+        width: Mm,
+        height: Mm,
+        padding: Padding,
+        default_font_size: Pt,
+        default_font_height_offset: Pt,
+    ) -> Self {
         Document {
             pdf_document: PdfDocument::new(name),
             elements: Vec::new(),
@@ -72,6 +83,8 @@ impl Document {
             footer_img: None,
             header_img: None,
             default_font: None,
+            default_font_size,
+            default_font_height_offset,
         }
     }
 
@@ -97,10 +110,15 @@ impl Document {
     /// Loads and adds a new font
     ///
     /// If this is the first font added, it will be set as the default font
-    pub fn add_font(&mut self, font_data: &[u8], index: usize) -> io::Result<FontId> {
+    pub fn add_font(
+        &mut self,
+        font_data: &[u8],
+        custom_font_size: Option<Pt>,
+        custom_font_height_offset: Option<Pt>,
+    ) -> io::Result<Font> {
         let mut warnings = Vec::new();
 
-        let Some(parsed_font) = ParsedFont::from_bytes(font_data, index, &mut warnings) else {
+        let Some(parsed_font) = ParsedFont::from_bytes(font_data, 0, &mut warnings) else {
             let message = warnings
                 .into_iter()
                 .map(|warn| format!("[{:?}] {}", warn.severity, warn.msg))
@@ -116,7 +134,11 @@ impl Document {
             self.default_font = Some(res.clone());
         }
 
-        Ok(res)
+        Ok(Font::new(
+            res,
+            custom_font_size.unwrap_or(self.default_font_size),
+            custom_font_height_offset.unwrap_or(self.default_font_height_offset),
+        ))
     }
 
     pub fn get_default_font(&self) -> FontId {

@@ -1,13 +1,14 @@
 use std::collections::VecDeque;
 
 use printpdf::{
-    FontId, Line, LinePoint, Mm, Op, PaintMode, Point, Polygon, Pt, Px, Rect, ShapedText, XObject,
+    Line, LinePoint, Mm, Op, PaintMode, Point, Polygon, Pt, Px, Rect, ShapedText, XObject,
     XObjectTransform,
 };
 
 use crate::generate::document::Document;
 use crate::generate::element::Element;
 use crate::generate::element::image::Image;
+use crate::generate::font::Font;
 use crate::generate::outline::LineStyle;
 use crate::generate::padding::Padding;
 use crate::generate::text_gen::{shape_text, split_shaped_text};
@@ -64,18 +65,12 @@ impl<'a> ElementBuilder<'a> {
 }
 
 impl<'a> ElementBuilder<'a> {
-    pub fn measure_text(
-        &self,
-        text: &str,
-        font: FontId,
-        font_size: Pt,
-        font_height_offset: Pt,
-    ) -> (Pt, Pt) {
+    pub fn measure_text(&self, text: &str, font: &Font) -> (Pt, Pt) {
         let shaped_text = shape_text(
             self.document.pdf_document(),
-            font,
-            font_size,
-            font_height_offset,
+            font.font_id(),
+            font.font_size(),
+            font.font_height_offset(),
             text,
             Some(self.remaining_width_from_cursor()),
         );
@@ -109,23 +104,17 @@ impl<'a> ElementBuilder<'a> {
         (final_width, final_height)
     }
 
-    pub fn push_paragraph(
-        &mut self,
-        paragraph: &str,
-        font: FontId,
-        font_size: Pt,
-        font_height_offset: Pt,
-    ) {
+    pub fn push_paragraph(&mut self, paragraph: &str, font: &Font) {
         let shaped_text = shape_text(
             self.document.pdf_document(),
-            font,
-            font_size,
-            font_height_offset,
+            font.font_id(),
+            font.font_size(),
+            font.font_height_offset(),
             paragraph,
             Some(self.remaining_width_from_cursor()),
         );
 
-        self.push_shaped_text(shaped_text, font_size, font_height_offset);
+        self.push_shaped_text(shaped_text, font.font_size(), font.font_height_offset());
     }
 
     /// Returning the last shaped text that didn't fit
@@ -842,22 +831,22 @@ impl<'a> ElementBuilder<'a> {
 
     pub fn push_rich_text(&mut self, rich_text: &crate::generate::element::rich_text::RichText) {
         let mut current_line_height = Pt(0.0);
-        for item in &rich_text.parts {
-            if item.0.is_empty() {
+        for (text, font) in &rich_text.parts {
+            if text.is_empty() {
                 continue;
             }
 
             let shaped_text = shape_text(
                 self.document.pdf_document(),
-                item.1.clone(),
-                rich_text.font_size,
-                rich_text.font_height_offset,
-                &item.0,
+                font.font_id(),
+                font.font_size(),
+                font.font_height_offset(),
+                &text,
                 Some(self.remaining_width_from_cursor()),
             );
 
             let first_line_text = if shaped_text.lines.len() == 1 {
-                item.0.clone()
+                text.clone()
             } else {
                 shaped_text
                     .lines
@@ -870,13 +859,13 @@ impl<'a> ElementBuilder<'a> {
                     .join("")
             };
 
-            let rest_text = &item.0[first_line_text.len()..item.0.len()];
+            let rest_text = &text[first_line_text.len()..text.len()];
 
             let first_line_shaped = shape_text(
                 self.document.pdf_document(),
-                item.1.clone(),
-                rich_text.font_size,
-                rich_text.font_height_offset,
+                font.font_id(),
+                font.font_size(),
+                font.font_height_offset(),
                 &first_line_text,
                 None,
             );
@@ -895,9 +884,9 @@ impl<'a> ElementBuilder<'a> {
 
                 let rest_shaped = shape_text(
                     self.document.pdf_document(),
-                    item.1.clone(),
-                    rich_text.font_size,
-                    rich_text.font_height_offset,
+                    font.font_id(),
+                    font.font_size(),
+                    font.font_height_offset(),
                     rest_text,
                     Some(self.remaining_width_from_cursor()),
                 );
@@ -912,17 +901,13 @@ impl<'a> ElementBuilder<'a> {
                     .collect::<Vec<_>>()
                     .join("");
 
-                self.push_shaped_text(
-                    rest_shaped,
-                    rich_text.font_size,
-                    rich_text.font_height_offset,
-                );
+                self.push_shaped_text(rest_shaped, font.font_size(), font.font_height_offset());
 
                 let last_line_shaped = shape_text(
                     self.document.pdf_document(),
-                    item.1.clone(),
-                    rich_text.font_size,
-                    rich_text.font_height_offset,
+                    font.font_id(),
+                    font.font_size(),
+                    font.font_height_offset(),
                     &last_line_text,
                     None,
                 );
