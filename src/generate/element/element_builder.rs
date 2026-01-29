@@ -884,18 +884,24 @@ impl<'a> ElementBuilder<'a> {
                 .expect("Always have one page")
                 .extend(first_line_shaped.get_ops(self.cursor));
 
-            let rest_shaped = shape_text(
-                self.document.pdf_document(),
-                item.1.clone(),
-                rich_text.font_size,
-                rich_text.font_height_offset,
-                rest_text,
-                Some(self.remaining_width_from_cursor()),
-            );
-
             let last_line_shaped = if shaped_text.lines.len() > 1 {
                 self.reset_cursor_x();
                 self.advance_cursor(current_line_height);
+
+                let rest_shaped = shape_text(
+                    self.document.pdf_document(),
+                    item.1.clone(),
+                    rich_text.font_size,
+                    rich_text.font_height_offset,
+                    rest_text,
+                    Some(self.remaining_width_from_cursor()),
+                );
+
+                self.push_shaped_text(
+                    rest_shaped.clone(),
+                    rich_text.font_size,
+                    rich_text.font_height_offset,
+                );
 
                 let last_line_text = rest_shaped
                     .lines
@@ -923,11 +929,6 @@ impl<'a> ElementBuilder<'a> {
             //     .last_mut()
             //     .expect("Always have one page")
             //     .extend(rest_shaped.get_ops(self.cursor));
-            self.push_shaped_text(
-                rest_shaped,
-                rich_text.font_size,
-                rich_text.font_height_offset,
-            );
 
             self.cursor.y += Pt(last_line_shaped.height);
             self.cursor.x += Pt(last_line_shaped.width);
