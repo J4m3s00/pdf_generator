@@ -44,9 +44,11 @@ pub fn shape_text(
     };
 
     let parsed_font = doc.resources.fonts.map.get(&font).unwrap();
-    let space_width = Pt(parsed_font.get_space_width().unwrap_or_default() as f32
+
+    let space_width = parsed_font.get_space_width().unwrap_or_default() as f32
         / parsed_font.font_metrics.units_per_em as f32
-        * font_size.0);
+        * font_size.0;
+
     let spaces_at_end = formated_text
         .chars()
         .rev()
@@ -58,7 +60,8 @@ pub fn shape_text(
         .unwrap();
 
     shaped_text.height = shaped_text.lines.len() as f32 * (font_size + font_height_offset).0;
-    shaped_text.width += space_width.0 * spaces_at_end;
+    // Dividing by two makes it better. Cant figure out how to calculate it properly.
+    shaped_text.width += (space_width * spaces_at_end) / 2.0;
 
     shaped_text
 }

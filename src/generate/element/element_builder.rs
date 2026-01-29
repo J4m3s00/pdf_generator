@@ -856,15 +856,19 @@ impl<'a> ElementBuilder<'a> {
                 Some(self.remaining_width_from_cursor()),
             );
 
-            let first_line_text = shaped_text
-                .lines
-                .first()
-                .expect("For now")
-                .words
-                .iter()
-                .map(|w| w.text.as_str())
-                .collect::<Vec<_>>()
-                .join("");
+            let first_line_text = if shaped_text.lines.len() == 1 {
+                item.0.clone()
+            } else {
+                shaped_text
+                    .lines
+                    .first()
+                    .expect("For now")
+                    .words
+                    .iter()
+                    .map(|w| w.text.as_str())
+                    .collect::<Vec<_>>()
+                    .join("")
+            };
 
             let rest_text = &item.0[first_line_text.len()..item.0.len()];
 
@@ -928,11 +932,6 @@ impl<'a> ElementBuilder<'a> {
             } else {
                 first_line_shaped
             };
-
-            // self.pages
-            //     .last_mut()
-            //     .expect("Always have one page")
-            //     .extend(rest_shaped.get_ops(self.cursor));
 
             self.cursor.x += Pt(last_line_shaped.width);
         }
