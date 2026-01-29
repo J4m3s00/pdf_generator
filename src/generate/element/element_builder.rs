@@ -914,15 +914,17 @@ impl<'a> ElementBuilder<'a> {
                     rich_text.font_height_offset,
                 );
 
-                self.cursor.y += Pt(last_line_shaped.height);
-                shape_text(
+                let last_line_shaped = shape_text(
                     self.document.pdf_document(),
                     item.1.clone(),
                     rich_text.font_size,
                     rich_text.font_height_offset,
                     &last_line_text,
                     None,
-                )
+                );
+                self.cursor.y += Pt(last_line_shaped.height);
+
+                last_line_shaped
             } else {
                 first_line_shaped
             };
