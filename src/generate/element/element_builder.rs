@@ -887,6 +887,7 @@ impl<'a> ElementBuilder<'a> {
             let last_line_shaped = if shaped_text.lines.len() > 1 {
                 self.reset_cursor_x();
                 self.advance_cursor(current_line_height);
+                current_line_height = Pt(0.0);
 
                 let rest_shaped = shape_text(
                     self.document.pdf_document(),
@@ -895,12 +896,6 @@ impl<'a> ElementBuilder<'a> {
                     rich_text.font_height_offset,
                     rest_text,
                     Some(self.remaining_width_from_cursor()),
-                );
-
-                self.push_shaped_text(
-                    rest_shaped.clone(),
-                    rich_text.font_size,
-                    rich_text.font_height_offset,
                 );
 
                 let last_line_text = rest_shaped
@@ -913,6 +908,13 @@ impl<'a> ElementBuilder<'a> {
                     .collect::<Vec<_>>()
                     .join("");
 
+                self.push_shaped_text(
+                    rest_shaped,
+                    rich_text.font_size,
+                    rich_text.font_height_offset,
+                );
+
+                self.cursor.y += Pt(last_line_shaped.height);
                 shape_text(
                     self.document.pdf_document(),
                     item.1.clone(),
@@ -930,7 +932,6 @@ impl<'a> ElementBuilder<'a> {
             //     .expect("Always have one page")
             //     .extend(rest_shaped.get_ops(self.cursor));
 
-            self.cursor.y += Pt(last_line_shaped.height);
             self.cursor.x += Pt(last_line_shaped.width);
         }
     }
