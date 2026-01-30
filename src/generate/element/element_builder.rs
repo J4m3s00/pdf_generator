@@ -8,6 +8,7 @@ use printpdf::{
 use crate::generate::document::Document;
 use crate::generate::element::Element;
 use crate::generate::element::image::Image;
+use crate::generate::element::rich_text::{RichText, RichTextLine, RichTextLinePart};
 use crate::generate::font::Font;
 use crate::generate::outline::LineStyle;
 use crate::generate::padding::Padding;
@@ -832,25 +833,10 @@ impl<'a> ElementBuilder<'a> {
         self.errors.extend(other.errors);
     }
 
-    pub fn push_rich_text(&mut self, rich_text: &crate::generate::element::rich_text::RichText) {
-        // We first need to cut into lines, so we can calculate the height properly
-
-        #[derive(Debug)]
-        struct LinePart {
-            text: String,
-            font: Font,
-            width: Pt,
-        }
-
-        #[derive(Default, Debug)]
-        struct Line {
-            parts: Vec<LinePart>,
-            height: Pt,
-        }
-
+    pub fn split_rich_text_into_lines(&self, rich_text: &RichText) -> Vec<RichTextLine> {
         let mut current_line_height = Pt(0.0);
         let mut current_line_width = Pt(0.0);
-        let mut lines: Vec<Line> = vec![Line::default()];
+        let mut lines: Vec<RichTextLine> = vec![RichTextLine::default()];
 
         for (text, font) in rich_text.parts.iter() {
             if text.is_empty() {
@@ -879,6 +865,15 @@ impl<'a> ElementBuilder<'a> {
                 )
                 .width
             } else {
+                // let space_advance_px =
+                //     shaped_words.get_space_advance_px(text_layout_options.font_size_px);
+                // let word_spacing_px = space_advance_px
+                //     * text_layout_options
+                //         .word_spacing
+                //         .as_ref()
+                //         .copied()
+                //         .unwrap_or(DEFAULT_WORD_SPACING);
+
                 shaped_text
                     .lines
                     .first()
@@ -907,7 +902,7 @@ impl<'a> ElementBuilder<'a> {
 
             let rest_text = &text[line_text.len()..text.len()];
 
-            current_line.parts.push(LinePart {
+            current_line.parts.push(RichTextLinePart {
                 text: line_text,
                 font: font.clone(),
                 width,
@@ -939,22 +934,28 @@ impl<'a> ElementBuilder<'a> {
 
                     let width = line.words.iter().map(|w| w.width).sum::<f32>();
 
-                    lines.push(Line {
-                        parts: vec![LinePart {
+                    lines.push(RichTextLine {
+                        parts: vec![RichTextLinePart {
                             text: line_text,
                             font: font.clone(),
                             width: Pt(width),
                         }],
                         height: Pt(font.font_size().0 + font.font_height_offset().0),
                     });
+                    current_line_width = Pt(width);
                 }
             }
         }
 
-        for (index, line) in lines.into_iter().enumerate() {
-            if index > 0 {
-                self.advance_cursor(line.height);
-            }
+        lines
+    }
+
+    pub fn push_rich_text(&mut self, rich_text: &crate::generate::element::rich_text::RichText) {
+        // We first need to cut into lines, so we can calculate the height properly
+        let lines = self.split_rich_text_into_lines(rich_text);
+
+        for line in lines.into_iter() {
+            self.advance_cursor(line.height);
             for part in line.parts {
                 let ops = Self::get_ops(&part.text, &part.font, self.cursor);
                 self.pages
