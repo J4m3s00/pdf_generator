@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
 use printpdf::{
-    Line, LinePoint, Mm, Op, PaintMode, Point, Polygon, Pt, Px, Rect, ShapedText, XObject,
-    XObjectTransform,
+    Line, LinePoint, Mm, Op, PaintMode, Point, Polygon, Pt, Px, Rect, ShapedText, TextItem,
+    XObject, XObjectTransform,
 };
 
 use crate::generate::document::Document;
@@ -127,7 +127,10 @@ impl<'a> ElementBuilder<'a> {
             self.remaining_height_from_cursor(),
         );
 
-        let ops = first.get_ops(self.cursor);
+        let ops = first.get_ops(Point {
+            x: self.cursor.x,
+            y: self.cursor.y,
+        });
         self.pages
             .last_mut()
             .expect("We always have one page")
@@ -830,11 +833,31 @@ impl<'a> ElementBuilder<'a> {
     }
 
     pub fn push_rich_text(&mut self, rich_text: &crate::generate::element::rich_text::RichText) {
+        // We first need to cut into lines, so we can calculate the height properly
+
+        #[derive(Debug)]
+        struct LinePart {
+            text: String,
+            font: Font,
+            width: Pt,
+        }
+
+        #[derive(Default, Debug)]
+        struct Line {
+            parts: Vec<LinePart>,
+            height: Pt,
+        }
+
         let mut current_line_height = Pt(0.0);
-        for (text, font) in &rich_text.parts {
+        let mut current_line_width = Pt(0.0);
+        let mut lines: Vec<Line> = vec![Line::default()];
+
+        for (text, font) in rich_text.parts.iter() {
             if text.is_empty() {
                 continue;
             }
+
+            let current_line = lines.last_mut().expect("We always have one line");
 
             let shaped_text = shape_text(
                 self.document.pdf_document(),
@@ -842,10 +865,33 @@ impl<'a> ElementBuilder<'a> {
                 font.font_size(),
                 font.font_height_offset(),
                 &text,
-                Some(self.remaining_width_from_cursor()),
+                Some(self.remaining_width - Mm::from(current_line_width)),
             );
 
-            let first_line_text = if shaped_text.lines.len() == 1 {
+            let width = Pt(if shaped_text.lines.len() == 1 {
+                shape_text(
+                    self.document.pdf_document(),
+                    font.font_id(),
+                    font.font_size(),
+                    font.font_height_offset(),
+                    &text,
+                    None,
+                )
+                .width
+            } else {
+                shaped_text
+                    .lines
+                    .first()
+                    .expect("For now")
+                    .words
+                    .iter()
+                    .map(|w| w.width)
+                    .sum()
+            });
+
+            let height = font.font_size() + font.font_height_offset();
+
+            let line_text = if shaped_text.lines.len() == 1 {
                 text.clone()
             } else {
                 shaped_text
@@ -859,66 +905,196 @@ impl<'a> ElementBuilder<'a> {
                     .join("")
             };
 
-            let rest_text = &text[first_line_text.len()..text.len()];
+            let rest_text = &text[line_text.len()..text.len()];
 
-            let first_line_shaped = shape_text(
-                self.document.pdf_document(),
-                font.font_id(),
-                font.font_size(),
-                font.font_height_offset(),
-                &first_line_text,
-                None,
-            );
+            current_line.parts.push(LinePart {
+                text: line_text,
+                font: font.clone(),
+                width,
+            });
 
-            current_line_height = current_line_height.max(Pt(first_line_shaped.height));
+            current_line_height = current_line_height.max(height);
+            current_line_width += width;
 
-            self.pages
-                .last_mut()
-                .expect("Always have one page")
-                .extend(first_line_shaped.get_ops(self.cursor));
+            current_line.height = current_line_height;
 
-            let last_line_shaped = if shaped_text.lines.len() > 1 {
-                self.reset_cursor_x();
-                self.advance_cursor(current_line_height);
-                current_line_height = Pt(0.0);
-
-                let rest_shaped = shape_text(
+            if shaped_text.lines.len() > 1 {
+                current_line_width = Pt(0.0);
+                // Check the rest of the lines
+                let shaped_rest = shape_text(
                     self.document.pdf_document(),
                     font.font_id(),
                     font.font_size(),
                     font.font_height_offset(),
                     rest_text,
-                    Some(self.remaining_width_from_cursor()),
+                    Some(self.remaining_width),
                 );
+                for line in shaped_rest.lines.iter() {
+                    let line_text = line
+                        .words
+                        .iter()
+                        .map(|w| w.text.as_str())
+                        .collect::<Vec<_>>()
+                        .join("");
 
-                let last_line_text = rest_shaped
-                    .lines
-                    .last()
-                    .expect("For now")
-                    .words
-                    .iter()
-                    .map(|w| w.text.as_str())
-                    .collect::<Vec<_>>()
-                    .join("");
+                    let width = line.words.iter().map(|w| w.width).sum::<f32>();
 
-                self.push_shaped_text(rest_shaped, font.font_size(), font.font_height_offset());
-
-                let last_line_shaped = shape_text(
-                    self.document.pdf_document(),
-                    font.font_id(),
-                    font.font_size(),
-                    font.font_height_offset(),
-                    &last_line_text,
-                    None,
-                );
-                self.cursor.y += Pt(last_line_shaped.height);
-
-                last_line_shaped
-            } else {
-                first_line_shaped
-            };
-
-            self.cursor.x += Pt(last_line_shaped.width);
+                    lines.push(Line {
+                        parts: vec![LinePart {
+                            text: line_text,
+                            font: font.clone(),
+                            width: Pt(width),
+                        }],
+                        height: Pt(font.font_size().0 + font.font_height_offset().0),
+                    });
+                }
+            }
         }
+
+        println!("{:#?}", lines);
+
+        for (index, line) in lines.into_iter().enumerate() {
+            if index > 0 {
+                self.advance_cursor(line.height);
+            }
+            for part in line.parts {
+                let ops = Self::get_ops(&part.text, &part.font, self.cursor);
+                self.pages
+                    .last_mut()
+                    .expect("Always have one page")
+                    .extend(ops);
+                self.cursor.x += part.width;
+            }
+            self.reset_cursor_x();
+        }
+
+        // let mut current_line_height = Pt(0.0);
+        // for (text, font) in &rich_text.parts {
+        //     if text.is_empty() {
+        //         continue;
+        //     }
+        //
+        //     let shaped_text = shape_text(
+        //         self.document.pdf_document(),
+        //         font.font_id(),
+        //         font.font_size(),
+        //         font.font_height_offset(),
+        //         &text,
+        //         Some(self.remaining_width_from_cursor()),
+        //     );
+        //
+        //     let first_line_text = if shaped_text.lines.len() == 1 {
+        //         text.clone()
+        //     } else {
+        //         shaped_text
+        //             .lines
+        //             .first()
+        //             .expect("For now")
+        //             .words
+        //             .iter()
+        //             .map(|w| w.text.as_str())
+        //             .collect::<Vec<_>>()
+        //             .join("")
+        //     };
+        //
+        //     let rest_text = &text[first_line_text.len()..text.len()];
+        //
+        //     let first_line_shaped = shape_text(
+        //         self.document.pdf_document(),
+        //         font.font_id(),
+        //         font.font_size(),
+        //         font.font_height_offset(),
+        //         &first_line_text,
+        //         None, // Some(self.remaining_width_from_cursor()),
+        //     );
+        //
+        //     current_line_height = current_line_height.max(Pt(first_line_shaped.height));
+        //
+        //     self.pages
+        //         .last_mut()
+        //         .expect("Always have one page")
+        //         .extend(first_line_shaped.get_ops(Point {
+        //             x: self.cursor.x,
+        //             y: self.cursor.y + font.font_size(),
+        //         }));
+        //
+        //     let last_line_shaped = if shaped_text.lines.len() > 1 {
+        //         self.reset_cursor_x();
+        //         self.advance_cursor(current_line_height);
+        //         current_line_height = Pt(0.0);
+        //
+        //         let rest_shaped = shape_text(
+        //             self.document.pdf_document(),
+        //             font.font_id(),
+        //             font.font_size(),
+        //             font.font_height_offset(),
+        //             rest_text,
+        //             Some(self.remaining_width_from_cursor()),
+        //         );
+        //
+        //         let last_line_text = rest_shaped
+        //             .lines
+        //             .last()
+        //             .expect("For now")
+        //             .words
+        //             .iter()
+        //             .map(|w| w.text.as_str())
+        //             .collect::<Vec<_>>()
+        //             .join("");
+        //
+        //         self.push_shaped_text(rest_shaped, font.font_size(), font.font_height_offset());
+        //
+        //         let last_line_shaped = shape_text(
+        //             self.document.pdf_document(),
+        //             font.font_id(),
+        //             font.font_size(),
+        //             font.font_height_offset(),
+        //             &last_line_text,
+        //             None,
+        //         );
+        //         self.cursor.y += Pt(last_line_shaped.height);
+        //
+        //         last_line_shaped
+        //     } else {
+        //         first_line_shaped
+        //     };
+        //
+        //     self.cursor.x += Pt(last_line_shaped.width);
+        // }
+    }
+
+    fn get_ops(text: &str, font: &Font, origin: Point) -> Vec<Op> {
+        let line_height = font.font_height_offset() + font.font_size();
+        let font_size = font.font_size();
+
+        let mut ops = Vec::new();
+
+        ops.push(Op::SaveGraphicsState);
+
+        // Start text section
+        ops.push(Op::StartTextSection);
+
+        // The origin_TOP_LEFT is the top left origin of the entire text block being layouted
+        // However, in PDF, the "set text cursor" sets the baseline of the first line...
+        ops.push(Op::SetTextCursor { pos: origin });
+
+        ops.push(Op::SetFontSize {
+            size: font_size,
+            font: font.font_id(),
+        });
+
+        ops.push(Op::SetLineHeight { lh: line_height });
+
+        ops.push(Op::WriteText {
+            items: vec![TextItem::Text(text.to_string())],
+            font: font.font_id(),
+        });
+
+        // End text section
+        ops.push(Op::EndTextSection);
+
+        ops.push(Op::RestoreGraphicsState);
+
+        ops
     }
 }

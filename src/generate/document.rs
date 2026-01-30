@@ -110,12 +110,7 @@ impl Document {
     /// Loads and adds a new font
     ///
     /// If this is the first font added, it will be set as the default font
-    pub fn add_font(
-        &mut self,
-        font_data: &[u8],
-        custom_font_size: Option<Pt>,
-        custom_font_height_offset: Option<Pt>,
-    ) -> io::Result<Font> {
+    pub fn add_font(&mut self, font_data: &[u8]) -> io::Result<Font> {
         let mut warnings = Vec::new();
 
         let Some(parsed_font) = ParsedFont::from_bytes(font_data, 0, &mut warnings) else {
@@ -136,8 +131,8 @@ impl Document {
 
         Ok(Font::new(
             res,
-            custom_font_size.unwrap_or(self.default_font_size),
-            custom_font_height_offset.unwrap_or(self.default_font_height_offset),
+            self.default_font_size,
+            self.default_font_height_offset,
         ))
     }
 

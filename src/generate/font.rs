@@ -1,6 +1,6 @@
 use printpdf::{FontId, Pt};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Font {
     font_id: FontId,
     font_size: Pt,
@@ -26,5 +26,21 @@ impl Font {
 
     pub fn font_height_offset(&self) -> Pt {
         self.font_height_offset
+    }
+
+    pub fn with_font_size(&self, font_size: Pt) -> Self {
+        Self {
+            font_id: self.font_id.clone(),
+            font_size,
+            font_height_offset: self.font_height_offset,
+        }
+    }
+
+    pub fn with_font_height_offset(&self, font_height_offset: Pt) -> Self {
+        Self {
+            font_id: self.font_id.clone(),
+            font_size: self.font_size,
+            font_height_offset,
+        }
     }
 }
