@@ -951,8 +951,6 @@ impl<'a> ElementBuilder<'a> {
             }
         }
 
-        println!("{:#?}", lines);
-
         for (index, line) in lines.into_iter().enumerate() {
             if index > 0 {
                 self.advance_cursor(line.height);
@@ -967,100 +965,6 @@ impl<'a> ElementBuilder<'a> {
             }
             self.reset_cursor_x();
         }
-
-        // let mut current_line_height = Pt(0.0);
-        // for (text, font) in &rich_text.parts {
-        //     if text.is_empty() {
-        //         continue;
-        //     }
-        //
-        //     let shaped_text = shape_text(
-        //         self.document.pdf_document(),
-        //         font.font_id(),
-        //         font.font_size(),
-        //         font.font_height_offset(),
-        //         &text,
-        //         Some(self.remaining_width_from_cursor()),
-        //     );
-        //
-        //     let first_line_text = if shaped_text.lines.len() == 1 {
-        //         text.clone()
-        //     } else {
-        //         shaped_text
-        //             .lines
-        //             .first()
-        //             .expect("For now")
-        //             .words
-        //             .iter()
-        //             .map(|w| w.text.as_str())
-        //             .collect::<Vec<_>>()
-        //             .join("")
-        //     };
-        //
-        //     let rest_text = &text[first_line_text.len()..text.len()];
-        //
-        //     let first_line_shaped = shape_text(
-        //         self.document.pdf_document(),
-        //         font.font_id(),
-        //         font.font_size(),
-        //         font.font_height_offset(),
-        //         &first_line_text,
-        //         None, // Some(self.remaining_width_from_cursor()),
-        //     );
-        //
-        //     current_line_height = current_line_height.max(Pt(first_line_shaped.height));
-        //
-        //     self.pages
-        //         .last_mut()
-        //         .expect("Always have one page")
-        //         .extend(first_line_shaped.get_ops(Point {
-        //             x: self.cursor.x,
-        //             y: self.cursor.y + font.font_size(),
-        //         }));
-        //
-        //     let last_line_shaped = if shaped_text.lines.len() > 1 {
-        //         self.reset_cursor_x();
-        //         self.advance_cursor(current_line_height);
-        //         current_line_height = Pt(0.0);
-        //
-        //         let rest_shaped = shape_text(
-        //             self.document.pdf_document(),
-        //             font.font_id(),
-        //             font.font_size(),
-        //             font.font_height_offset(),
-        //             rest_text,
-        //             Some(self.remaining_width_from_cursor()),
-        //         );
-        //
-        //         let last_line_text = rest_shaped
-        //             .lines
-        //             .last()
-        //             .expect("For now")
-        //             .words
-        //             .iter()
-        //             .map(|w| w.text.as_str())
-        //             .collect::<Vec<_>>()
-        //             .join("");
-        //
-        //         self.push_shaped_text(rest_shaped, font.font_size(), font.font_height_offset());
-        //
-        //         let last_line_shaped = shape_text(
-        //             self.document.pdf_document(),
-        //             font.font_id(),
-        //             font.font_size(),
-        //             font.font_height_offset(),
-        //             &last_line_text,
-        //             None,
-        //         );
-        //         self.cursor.y += Pt(last_line_shaped.height);
-        //
-        //         last_line_shaped
-        //     } else {
-        //         first_line_shaped
-        //     };
-        //
-        //     self.cursor.x += Pt(last_line_shaped.width);
-        // }
     }
 
     fn get_ops(text: &str, font: &Font, origin: Point) -> Vec<Op> {
