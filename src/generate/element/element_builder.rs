@@ -966,6 +966,7 @@ impl<'a> ElementBuilder<'a> {
             }
             self.reset_cursor_x();
         }
+        self.advance_cursor(Pt(3.0));
     }
 
     fn get_ops(text: &str, font: &Font, origin: Point) -> Vec<Op> {
