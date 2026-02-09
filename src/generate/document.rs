@@ -1,7 +1,7 @@
 use std::{io, path::Path};
 
 use printpdf::{
-    FontId, ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
+    ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
     PdfSaveOptions, PdfWarnMsg, Point, Pt, Px, RawImage, XObjectId, XObjectTransform,
 };
 
@@ -57,7 +57,7 @@ pub struct Document {
     footer_img: Option<DocumentImage>,
     header_img: Option<DocumentImage>,
 
-    default_font: Option<FontId>,
+    default_font: Option<Font>,
 
     default_font_size: Pt,
     default_font_height_offset: Pt,
@@ -123,20 +123,21 @@ impl Document {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, message));
         };
 
-        let res = self.pdf_document.add_font(&parsed_font);
-
-        if self.default_font.is_none() {
-            self.default_font = Some(res.clone());
-        }
-
-        Ok(Font::new(
-            res,
+        let font_id = self.pdf_document.add_font(&parsed_font);
+        let font = Font::new(
+            font_id,
             self.default_font_size,
             self.default_font_height_offset,
-        ))
+        );
+
+        if self.default_font.is_none() {
+            self.default_font = Some(font.clone());
+        }
+
+        Ok(font)
     }
 
-    pub fn get_default_font(&self) -> FontId {
+    pub fn get_default_font(&self) -> Font {
         self.default_font
             .clone()
             .expect("Default font not set. Please add a font using `add_font` method.")
