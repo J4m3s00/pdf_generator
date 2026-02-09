@@ -321,7 +321,7 @@ impl Document {
     // }
 
     fn generate_header_ops(&self) -> Vec<Op> {
-        if let Some(header) = &self.header_img {
+        if let Some((header, _)) = &self.header_img {
             vec![Op::UseXobject {
                 id: header.xobject_id.clone(),
                 transform: XObjectTransform {
