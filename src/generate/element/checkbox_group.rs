@@ -45,7 +45,7 @@ impl Element for CheckboxGroup {
         })
     }
 
-    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_height<'a>(&self, _builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
         Mm::from(self.font.font_size() + self.font.font_height_offset())
     }
 
@@ -62,7 +62,7 @@ impl Element for CheckboxGroup {
         // let (mut left, mut right) = group_builder
         //     .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
 
-        for (index, item) in self.checkboxes.iter().enumerate() {
+        for item in self.checkboxes.iter() {
             let width = next_builder.measure_text(&item, &self.font).0
                 + self.font.font_size()
                 + Pt(4.0) // Gap between box and text
