@@ -5,14 +5,17 @@ use crate::generate::element::{Element, element_builder::ColumnWidth};
 pub const LEFT_WIDTH: Mm = Mm(50.0);
 
 pub enum LeftWidth {
+    Percent(f32),
     Fixed(Mm),
+    /// Calculate the width of the left column based on its content, but ensure that the right
+    /// column has at least 50mm of space.
     Auto,
 }
 
 pub struct Column {
     pub right: Box<dyn Element>,
     pub left: Box<dyn Element>,
-    pub left_width: ColumnWidth,
+    pub left_width: LeftWidth,
 }
 
 impl Column {
@@ -22,7 +25,7 @@ impl Column {
         Right: Element + 'static,
     {
         Column {
-            left_width: ColumnWidth::Fixed(LEFT_WIDTH),
+            left_width: LeftWidth::Fixed(LEFT_WIDTH),
             left: Box::new(left),
             right: Box::new(right),
         }
@@ -32,13 +35,31 @@ impl Column {
         Self {
             left,
             right,
-            left_width: ColumnWidth::Fixed(LEFT_WIDTH),
+            left_width: LeftWidth::Fixed(LEFT_WIDTH),
         }
     }
 
-    pub fn with_left_width(mut self, width: ColumnWidth) -> Self {
+    pub fn with_left_width(mut self, width: LeftWidth) -> Self {
         self.left_width = width;
         self
+    }
+
+    fn widht_to_column_width<'a>(
+        &self,
+        builder: &super::element_builder::ElementBuilder<'a>,
+    ) -> ColumnWidth {
+        match self.left_width {
+            LeftWidth::Percent(p) => ColumnWidth::Percent(p),
+            LeftWidth::Fixed(mm) => ColumnWidth::Fixed(mm),
+            LeftWidth::Auto => {
+                let left_width = self
+                    .left
+                    .calculate_width(builder)
+                    .max(builder.remaining_width_from_cursor() - Mm(50.0));
+
+                ColumnWidth::Fixed(left_width)
+            }
+        }
     }
 }
 
@@ -51,7 +72,8 @@ impl Element for Column {
         builder.remaining_width_from_cursor()
     }
     fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        let (left_builder, right_builder) = builder.generate_column_builder(self.left_width);
+        let column_width = self.widht_to_column_width(builder);
+        let (left_builder, right_builder) = builder.generate_column_builder(column_width);
 
         let left_height = self.left.calculate_height(&left_builder);
         let right_height = self.right.calculate_height(&right_builder);
@@ -60,8 +82,9 @@ impl Element for Column {
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
-        let (mut left_builder, mut right_builder) =
-            builder.generate_column_builder(self.left_width);
+        let column_width = self.widht_to_column_width(builder);
+
+        let (mut left_builder, mut right_builder) = builder.generate_column_builder(column_width);
         self.left.build(&mut left_builder);
         self.right.build(&mut right_builder);
 
