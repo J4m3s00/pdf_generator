@@ -237,7 +237,7 @@ impl<'a> ElementBuilder<'a> {
                     LinePoint {
                         bezier: false,
                         p: Point {
-                            x: self.cursor.x + width.into_pt() - padding.right.into_pt(),
+                            x: self.cursor.x + width.into_pt() + padding.left.into_pt(),
                             y: self.cursor.y,
                         },
                     },
