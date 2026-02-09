@@ -35,35 +35,18 @@ impl Element for CheckboxGroup {
     }
 
     fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        builder.remaining_width_from_cursor()
+        self.checkboxes.iter().fold(Mm(0.0), |t, cb| {
+            t + Mm::from(
+                builder.measure_text(cb.as_str(), &self.font).0
+                    + Pt(4.0)
+                    + self.font.font_size()
+                    + self.space_between_checkboxes,
+            )
+        })
     }
 
     fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        let (mut left, mut right) = builder
-            .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
-
-        self.checkboxes
-            .iter()
-            .enumerate()
-            .fold(Mm(0.0), move |v, (index, item)| {
-                let (_, text_builder) = left.generate_column_builder(ColumnWidth::Fixed(Mm::from(
-                    self.font.font_size() + Pt(4.0),
-                )));
-
-                let height = self
-                    .font
-                    .font_size()
-                    .max(text_builder.measure_text(item.as_str(), &self.font).1);
-
-                let column_width =
-                    ColumnWidth::Percent(1.0 / (self.checkboxes.len() - index - 1) as f32);
-                let (new_left, new_right) = right.generate_column_builder(column_width);
-
-                left = new_left;
-                right = new_right;
-
-                v.max(Mm::from(height))
-            })
+        Mm::from(self.font.font_size() + self.font.font_height_offset())
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
@@ -74,11 +57,21 @@ impl Element for CheckboxGroup {
         let mut group_builder =
             builder.generate_group_builder(&Padding::none(), Some(self.calculate_height(builder)));
 
-        let (mut left, mut right) = group_builder
-            .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
+        let mut next_builder = group_builder.clone();
+
+        // let (mut left, mut right) = group_builder
+        //     .generate_column_builder(ColumnWidth::Percent(1.0 / self.checkboxes.len() as f32));
 
         for (index, item) in self.checkboxes.iter().enumerate() {
-            let (mut box_builder, mut text_builder) = left.generate_column_builder(
+            let width = next_builder.measure_text(&item, &self.font).0
+                + self.font.font_size()
+                + Pt(4.0) // Gap between box and text
+                + self.space_between_checkboxes;
+
+            let (this_side, next_side) =
+                next_builder.generate_column_builder(ColumnWidth::Fixed(Mm::from(width)));
+
+            let (mut box_builder, mut text_builder) = this_side.generate_column_builder(
                 ColumnWidth::Fixed(Mm::from(self.font.font_size() + Pt(4.0))),
             );
 
@@ -86,19 +79,16 @@ impl Element for CheckboxGroup {
 
             text_builder.push_paragraph(item.as_str(), &self.font);
 
-            let column_width =
-                ColumnWidth::Percent(1.0 / (self.checkboxes.len() - index - 1) as f32);
-            let (new_left, new_right) = right.generate_column_builder(column_width);
-
             group_builder.merge(box_builder);
             group_builder.merge(text_builder);
 
-            left = new_left;
-            right = new_right;
+            next_builder = next_side;
         }
 
-        builder.merge(group_builder);
+        group_builder.advance_cursor(self.calculate_height(builder).into_pt());
+        let cursor = group_builder.cursor.y;
 
-        builder.advance_cursor(self.calculate_height(builder).into_pt());
+        builder.merge(group_builder);
+        builder.update_cursor(cursor);
     }
 }

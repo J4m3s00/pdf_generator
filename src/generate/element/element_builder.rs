@@ -33,6 +33,7 @@ pub enum ColumnWidth {
     Percent(f32),
 }
 
+#[derive(Clone)]
 pub struct ElementBuilder<'a> {
     pub(crate) document: &'a Document,
     origin: Point,
@@ -67,16 +68,32 @@ impl<'a> ElementBuilder<'a> {
 
 impl<'a> ElementBuilder<'a> {
     pub fn measure_text(&self, text: &str, font: &Font) -> (Pt, Pt) {
-        let shaped_text = shape_text(
+        let no_limit_shaped_text = shape_text(
             self.document.pdf_document(),
             font.font_id(),
             font.font_size(),
             font.font_height_offset(),
             text,
-            Some(self.remaining_width_from_cursor()),
+            None,
         );
 
-        (Pt(shaped_text.width), Pt(shaped_text.height))
+        if Pt(no_limit_shaped_text.width) > self.remaining_width_from_cursor().into_pt() {
+            let shaped_text = shape_text(
+                self.document.pdf_document(),
+                font.font_id(),
+                font.font_size(),
+                font.font_height_offset(),
+                text,
+                Some(self.remaining_width_from_cursor()),
+            );
+
+            (Pt(shaped_text.width), Pt(shaped_text.height))
+        } else {
+            (
+                Pt(no_limit_shaped_text.width),
+                Pt(no_limit_shaped_text.height),
+            )
+        }
     }
 
     pub fn measure_image(&self, image: &Image) -> (Pt, Pt) {
@@ -139,12 +156,29 @@ impl<'a> ElementBuilder<'a> {
         self.cursor.y -= Pt(first.height);
 
         if let Some(rest) = rest {
+            println!(
+                "Text didn't fit, pushing to next page. Rest height {:?}",
+                rest.lines
+                    .first()
+                    .unwrap()
+                    .words
+                    .iter()
+                    .map(|w| w.text.clone())
+                    .collect::<Vec<_>>()
+                    .join("")
+            );
             self.next_page();
             self.push_shaped_text(rest, font_size, font_height_offset);
         }
     }
 
     pub fn draw_rect(&mut self, size: Pt) {
+        println!(
+            "Pushing rect with size {:?}, remaining height {:?} and cursor {:?}",
+            size,
+            self.remaining_height_from_cursor(),
+            self.cursor
+        );
         if self.remaining_height_from_cursor().into_pt() < size {
             self.next_page();
         }
@@ -181,7 +215,6 @@ impl<'a> ElementBuilder<'a> {
         self.advance_cursor(padding.top.into_pt());
 
         let width = self.remaining_width_from_cursor() - padding.left - padding.right;
-        println!("Width of line: {:?}", width);
 
         let mut ops = Vec::new();
         ops.push(Op::SaveGraphicsState);
@@ -357,6 +390,7 @@ impl<'a> ElementBuilder<'a> {
             ColumnWidth::Fixed(mm) => mm,
             ColumnWidth::Percent(fr) => self.remaining_width_from_cursor() * fr,
         };
+
         let right_width = self.remaining_width_from_cursor() - left_width;
         let left_builder = ElementBuilder {
             document: self.document,
@@ -429,6 +463,7 @@ impl<'a> ElementBuilder<'a> {
             origin,
             cursor: origin,
             remaining_width: self.remaining_width - (padding.left + padding.right),
+            // This seems to mess with the new pages, when creatin a checkbox group that will be pushed to the next page
             starting_page: self.pages.len() - if new_page { 0 } else { 1 },
             pages: vec![Vec::new()],
             added_padding_bottom: padding.bottom,
