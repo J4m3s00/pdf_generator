@@ -229,14 +229,6 @@ impl Document {
     }
 
     pub fn generate_document(mut self) -> PdfDocument {
-        // If we have a footer, reserve space for it
-        if let Some(footer_img) = &self.footer_img {
-            let measure_builder = ElementBuilder::new(&self);
-            let img = Image::new(footer_img.xobject_id.clone(), Some(self.style.width));
-            let (_, img_height) = measure_builder.measure_image(&img);
-            self.style.padding.bottom += Mm::from(img_height);
-        }
-
         let mut current_builder = ElementBuilder::new(&self);
         // Insert header image
         if let Some((header_image, after_image_padding)) = &self.header_img {
