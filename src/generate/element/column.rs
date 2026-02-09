@@ -55,7 +55,7 @@ impl Column {
                 let left_width = self
                     .left
                     .calculate_width(builder)
-                    .max(builder.remaining_width_from_cursor() - Mm(50.0));
+                    .min(builder.remaining_width_from_cursor() - Mm(50.0));
 
                 ColumnWidth::Fixed(left_width)
             }
