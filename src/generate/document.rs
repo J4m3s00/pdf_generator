@@ -159,6 +159,12 @@ impl Document {
         });
     }
 
+    pub fn load_image(&mut self, image_data: &[u8]) -> Result<XObjectId, String> {
+        let raw_image = RawImage::decode_from_bytes(image_data, &mut Vec::new())?;
+
+        Ok(self.add_image(raw_image))
+    }
+
     pub fn add_image(&mut self, image: RawImage) -> XObjectId {
         self.pdf_document.add_image(&image)
     }
