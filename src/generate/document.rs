@@ -55,7 +55,7 @@ pub struct Document {
     style: DocumentStyle,
 
     footer_img: Option<DocumentImage>,
-    header_img: Option<DocumentImage>,
+    header_img: Option<(DocumentImage, Mm)>,
 
     default_font: Option<Font>,
 
@@ -143,20 +143,23 @@ impl Document {
             .expect("Default font not set. Please add a font using `add_font` method.")
     }
 
-    pub fn set_header_image(&mut self, image_data: &[u8]) {
+    pub fn set_header_image(&mut self, image_data: &[u8], after_image_padding: Mm) {
         let raw_image = RawImage::decode_from_bytes(image_data, &mut Vec::new()).unwrap();
 
         let height_pt = Px(raw_image.height).into_pt(300.0);
 
         let header = self.pdf_document.add_image(&raw_image);
 
-        self.header_img = Some(DocumentImage {
-            xobject_id: header,
-            position: Point {
-                x: Pt(0.0),
-                y: Pt::from(self.style.height) - height_pt,
+        self.header_img = Some((
+            DocumentImage {
+                xobject_id: header,
+                position: Point {
+                    x: Pt(0.0),
+                    y: Pt::from(self.style.height) - height_pt,
+                },
             },
-        });
+            after_image_padding,
+        ));
     }
 
     pub fn load_image(&mut self, image_data: &[u8]) -> Result<XObjectId, String> {
@@ -236,11 +239,14 @@ impl Document {
 
         let mut current_builder = ElementBuilder::new(&self);
         // Insert header image
-        if let Some(header_image) = &self.header_img {
+        if let Some((header_image, after_image_padding)) = &self.header_img {
             let img = Image::new(header_image.xobject_id.clone(), Some(self.style.width));
+
             let (_, img_height) = current_builder.measure_image(&img);
 
-            current_builder.advance_cursor(img_height);
+            current_builder.advance_cursor(
+                img_height - self.style.padding.top.into_pt() + after_image_padding.into_pt(),
+            );
             current_builder
                 .pages
                 .first_mut()
