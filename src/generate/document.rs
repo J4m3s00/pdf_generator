@@ -1,8 +1,13 @@
-use std::{io, path::Path};
+use std::{
+    io::{self, Cursor},
+    path::Path,
+};
 
+use image::{EncodableLayout, GenericImageView, Rgba};
 use printpdf::{
     ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
-    PdfSaveOptions, PdfWarnMsg, Point, Pt, Px, RawImage, XObjectId, XObjectTransform,
+    PdfSaveOptions, PdfWarnMsg, Point, Pt, Px, RawImage, RawImageData, RawImageFormat, XObjectId,
+    XObjectTransform,
 };
 
 use crate::generate::{
@@ -163,7 +168,36 @@ impl Document {
     }
 
     pub fn load_image(&mut self, image_data: &[u8]) -> Result<XObjectId, String> {
-        let raw_image = RawImage::decode_from_bytes(image_data, &mut Vec::new())?;
+        let loaded_image = image::load_from_memory(image_data).map_err(|e| format!("{e}"))?;
+        let mut cursor = Cursor::new(image_data);
+        let orientation = exif::Reader::new()
+            .read_from_container(&mut cursor)
+            .ok()
+            .and_then(|exif| {
+                exif.get_field(exif::Tag::Orientation, exif::In::PRIMARY)
+                    .and_then(|f| f.value.get_uint(0))
+            })
+            .unwrap_or(1);
+        let orientated_image = match orientation {
+            2 => loaded_image.fliph(),
+            3 => loaded_image.rotate180(),
+            4 => loaded_image.flipv(),
+            5 => loaded_image.fliph().rotate90(),
+            6 => loaded_image.rotate90(),
+            7 => loaded_image.fliph().rotate270(),
+            8 => loaded_image.rotate270(),
+            _ => loaded_image,
+        };
+
+        let (width, height) = orientated_image.dimensions();
+        let rgba = orientated_image.into_rgb8().into_raw();
+        let raw_image = RawImage {
+            pixels: RawImageData::U8(rgba),
+            width: width as usize,
+            height: height as usize,
+            data_format: RawImageFormat::RGB8,
+            tag: vec![],
+        };
 
         Ok(self.add_image(raw_image))
     }

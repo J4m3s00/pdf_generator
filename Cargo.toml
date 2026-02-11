@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-printpdf = { version = "0.8.2", features = ["png"] }
+image = "0.25.9"
+kamadak-exif = "0.6.1"
+printpdf = { version = "0.8.2", features = ["png", "jpeg"] }
