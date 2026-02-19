@@ -30,9 +30,11 @@ impl Table {
         self.header = Some((header, font.unwrap_or(self.font.clone())));
     }
 
-    pub fn add_row(&mut self, row: Vec<String>) {
-        assert_eq!(row.len(), self.num_cols);
-        self.content.push(row);
+    pub fn add_row(&mut self, row: impl IntoIterator<Item = String>) {
+        let vec = row.into_iter().collect::<Vec<_>>();
+
+        assert_eq!(vec.len(), self.num_cols);
+        self.content.push(vec);
     }
 
     fn build_headers<'a>(
