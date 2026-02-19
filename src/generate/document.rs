@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use image::{EncodableLayout, GenericImageView, Rgba};
+use image::GenericImageView;
 use printpdf::{
     ImageCompression, ImageOptimizationOptions, Mm, Op, ParsedFont, PdfDocument, PdfPage,
     PdfSaveOptions, PdfWarnMsg, Point, Pt, Px, RawImage, RawImageData, RawImageFormat, XObjectId,

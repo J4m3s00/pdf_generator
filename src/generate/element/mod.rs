@@ -13,6 +13,7 @@ pub mod image_flex;
 pub mod line;
 pub mod paragraph;
 pub mod rich_text;
+pub mod table;
 
 pub struct BuildResult {
     pub ops: Vec<Op>,

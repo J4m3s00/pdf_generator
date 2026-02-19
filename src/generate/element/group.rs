@@ -36,8 +36,8 @@ impl Group {
         self
     }
 
-    pub fn with_outline(mut self, outline: LineStyle) -> Self {
-        self.outline = Some(outline);
+    pub fn with_outline(mut self, line_style: LineStyle) -> Self {
+        self.outline = Some(line_style);
         self
     }
 }

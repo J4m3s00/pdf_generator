@@ -96,6 +96,32 @@ impl<'a> ElementBuilder<'a> {
         }
     }
 
+    pub fn first_line(&self, text: &str, width: Pt, font: &Font) -> String {
+        if text.is_empty() {
+            return String::new();
+        }
+
+        let shaped_text = shape_text(
+            self.document.pdf_document(),
+            font.font_id(),
+            font.font_size(),
+            font.font_height_offset(),
+            text,
+            Some(Mm::from(width)),
+        );
+
+        let Some(first_line) = shaped_text.lines.first() else {
+            return String::new();
+        };
+
+        first_line
+            .words
+            .iter()
+            .map(|w| w.text.as_str())
+            .collect::<Vec<_>>()
+            .join("")
+    }
+
     pub fn measure_image(&self, image: &Image) -> (Pt, Pt) {
         let XObject::Image(raw_image) = self
             .document
@@ -173,12 +199,6 @@ impl<'a> ElementBuilder<'a> {
     }
 
     pub fn draw_rect(&mut self, size: Pt) {
-        println!(
-            "Pushing rect with size {:?}, remaining height {:?} and cursor {:?}",
-            size,
-            self.remaining_height_from_cursor(),
-            self.cursor
-        );
         if self.remaining_height_from_cursor().into_pt() < size {
             self.next_page();
         }
@@ -805,15 +825,19 @@ impl<'a> ElementBuilder<'a> {
     }
 
     /// Advances the cursor on the y axis
-    pub fn advance_cursor(&mut self, dy: Pt) {
+    ///
+    /// Returns true if we had to go to the next page
+    pub fn advance_cursor(&mut self, dy: Pt) -> bool {
         let remaining_height = self.remaining_height_from_cursor().into_pt();
         if dy > remaining_height {
             // We need to go to the next page
             self.next_page();
             let rest = dy - remaining_height;
             self.cursor.y -= rest;
+            true
         } else {
             self.cursor.y -= dy;
+            false
         }
     }
 
@@ -983,6 +1007,54 @@ impl<'a> ElementBuilder<'a> {
         }
 
         lines
+    }
+
+    pub fn push_text_dont_change_cursor(&mut self, text: &str, font: &Font, offset: Point) {
+        let shaped_text = shape_text(
+            self.document.pdf_document(),
+            font.font_id(),
+            font.font_size(),
+            font.font_height_offset(),
+            text,
+            None, // Some(self.remaining_width_from_cursor()),
+        );
+
+        self.pages
+            .last_mut()
+            .expect("Always at least one page")
+            .extend(shaped_text.get_ops(Point {
+                x: self.cursor.x + offset.x,
+                y: self.cursor.y - offset.y,
+            }));
+    }
+
+    pub fn fill_rect_dont_change_cursor(&mut self, width: Pt, height: Pt, color: printpdf::Color) {
+        // if self.remaining_height_from_cursor().into_pt() < height {
+        //     self.next_page();
+        // }
+
+        let mut ops = Vec::new();
+
+        let checkbox_rect = Rect {
+            x: self.cursor.x,
+            y: self.cursor.y,
+            width,  // Fixed width for checkbox
+            height, // Fixed height for checkbox
+        };
+        ops.push(printpdf::Op::SaveGraphicsState);
+        ops.push(printpdf::Op::SetFillColor { col: color });
+        ops.push(printpdf::Op::DrawPolygon {
+            polygon: Polygon {
+                mode: PaintMode::Fill,
+                ..checkbox_rect.to_polygon()
+            },
+        });
+        ops.push(printpdf::Op::RestoreGraphicsState);
+
+        self.pages
+            .last_mut()
+            .expect("Always at least one page")
+            .extend(ops);
     }
 
     pub fn push_rich_text(&mut self, rich_text: &crate::generate::element::rich_text::RichText) {
