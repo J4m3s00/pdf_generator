@@ -67,6 +67,55 @@ impl<'a> ElementBuilder<'a> {
 }
 
 impl<'a> ElementBuilder<'a> {
+    pub fn measure_text_min_content(&self, text: &str, font: &Font) -> Pt {
+        let shaped_text = shape_text(
+            self.document.pdf_document(),
+            font.font_id(),
+            font.font_size(),
+            font.font_height_offset(),
+            text,
+            None,
+        );
+
+        shaped_text
+            .lines
+            .iter()
+            .flat_map(|line| line.words.iter())
+            .map(|word| Pt(word.width))
+            .max()
+            .unwrap_or_else(|| Pt(0.0))
+    }
+
+    pub fn measure_text_manuel(&self, text: &str, font: &Font, max_width: Option<Mm>) -> (Pt, Pt) {
+        let no_limit_shaped_text = shape_text(
+            self.document.pdf_document(),
+            font.font_id(),
+            font.font_size(),
+            font.font_height_offset(),
+            text,
+            None,
+        );
+
+        if let Some(max_width) = max_width {
+            if Pt(no_limit_shaped_text.width) > max_width.into_pt() {
+                let shaped_text = shape_text(
+                    self.document.pdf_document(),
+                    font.font_id(),
+                    font.font_size(),
+                    font.font_height_offset(),
+                    text,
+                    Some(max_width),
+                );
+
+                return (Pt(shaped_text.width), Pt(shaped_text.height));
+            }
+        }
+        (
+            Pt(no_limit_shaped_text.width),
+            Pt(no_limit_shaped_text.height),
+        )
+    }
+
     pub fn measure_text(&self, text: &str, font: &Font) -> (Pt, Pt) {
         let no_limit_shaped_text = shape_text(
             self.document.pdf_document(),
@@ -1009,14 +1058,20 @@ impl<'a> ElementBuilder<'a> {
         lines
     }
 
-    pub fn push_text_dont_change_cursor(&mut self, text: &str, font: &Font, offset: Point) {
+    pub fn push_text_dont_change_cursor(
+        &mut self,
+        text: &str,
+        font: &Font,
+        offset: Point,
+        max_width: Option<Mm>,
+    ) {
         let shaped_text = shape_text(
             self.document.pdf_document(),
             font.font_id(),
             font.font_size(),
             font.font_height_offset(),
             text,
-            None, // Some(self.remaining_width_from_cursor()),
+            max_width,
         );
 
         self.pages

@@ -1,9 +1,8 @@
-use std::f32;
-
 use printpdf::{Greyscale, Mm, Point, Pt};
 use taffy::{
-    AvailableSpace, Display, NodeId, Overflow, Rect, Size, Style, TaffyTree,
-    prelude::{auto, length},
+    AvailableSpace, Display, LengthPercentage, MaxTrackSizingFunction, MinTrackSizingFunction,
+    NodeId, Overflow, Rect, Size, Style, TaffyTree,
+    prelude::{auto, length, minmax},
 };
 
 use crate::generate::{element::Element, font::Font};
@@ -75,18 +74,16 @@ impl Table {
         builder.fill_rect_dont_change_cursor(Pt(layout.size.width), Pt(layout.size.height), color);
 
         if let Some(content) = built.taffy.get_node_context(node) {
-            let first_line =
-                builder.first_line(&content.content, Pt(layout.size.width), &content.font);
-
             builder.push_text_dont_change_cursor(
-                &first_line,
+                &content.content,
                 &content.font,
                 Point {
                     x: Pt(layout.padding.left),
                     y: Pt(layout.padding.top),
                 },
+                Some(Mm::from(Pt(layout.size.width))),
             );
-            builder.cursor.x += Pt(layout.size.width);
+            builder.cursor.x += Pt(layout.content_size.width);
         }
         if col == self.num_cols - 1 {
             builder.reset_cursor_x();
@@ -229,7 +226,22 @@ impl BuiltTable {
                 width: length(builder.remaining_width_from_cursor().into_pt().0),
                 height: auto(),
             },
-            grid_template_columns: vec![auto(); value.num_cols],
+            min_size: Size {
+                width: length(builder.remaining_width_from_cursor().into_pt().0),
+                height: auto(),
+            },
+            max_size: Size {
+                width: length(builder.remaining_width_from_cursor().into_pt().0),
+                height: auto(),
+            },
+            grid_template_columns: vec![
+                // minmax(
+                //     MinTrackSizingFunction::min_content(),
+                //     MaxTrackSizingFunction::fr(1.0)
+                // );
+                auto();
+                value.num_cols
+            ],
             ..Default::default()
         };
 
@@ -271,31 +283,41 @@ impl BuiltTable {
                         height: Some(height),
                     } = known_dimensions
                     {
+                        println!("Known dimensions: width = {}, height = {}", width, height);
                         return Size { width, height };
                     };
 
                     match node_context {
                         None => Size::ZERO,
                         Some(content) => {
-                            let available_width = match available_space.width {
-                                AvailableSpace::Definite(width) => width,
-                                _ => f32::MAX,
-                            };
+                            // Determine the width to use for measurement
+                            let width = known_dimensions.width.unwrap_or_else(|| {
+                                let min_line_width = builder
+                                    .measure_text_min_content(&content.content, &content.font)
+                                    .0;
+                                let max_line_width = builder
+                                    .measure_text_manuel(&content.content, &content.font, None)
+                                    .0
+                                    .0;
+                                match available_space.width {
+                                    AvailableSpace::Definite(w) => {
+                                        w.min(max_line_width).max(min_line_width)
+                                    }
+                                    AvailableSpace::MinContent => min_line_width,
+                                    AvailableSpace::MaxContent => max_line_width,
+                                }
+                            });
 
-                            let available_height = match available_space.height {
-                                AvailableSpace::Definite(height) => height,
-                                _ => f32::MAX,
-                            };
+                            // Measure text at the determined width to get the height
+                            let measured = builder.measure_text_manuel(
+                                &content.content,
+                                &content.font,
+                                Some(Mm::from(Pt(width))),
+                            );
 
-                            let measured_text_size =
-                                builder.measure_text(&content.content, &content.font);
-                            Size {
-                                width: length(measured_text_size.0.0.min(available_width)),
-                                height: length(
-                                    (value.font.font_size().0 + value.font.font_height_offset().0)
-                                        .min(available_height),
-                                ),
-                            }
+                            let height = known_dimensions.height.unwrap_or(measured.1.0);
+
+                            Size { width, height }
                         }
                     }
                 },
