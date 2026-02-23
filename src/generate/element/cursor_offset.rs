@@ -9,6 +9,9 @@ pub enum CursorOffset {
         font_size: Pt,
         font_height_offset: Pt,
     },
+    PageBreaks {
+        pages: u8,
+    },
 }
 
 impl CursorOffset {
@@ -31,7 +34,7 @@ impl Element for CursorOffset {
         Mm(0.0)
     }
 
-    fn calculate_height<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
         match self {
             Self::Relative(rel) => Mm::from(*rel),
             Self::LineBreaks {
@@ -39,22 +42,32 @@ impl Element for CursorOffset {
                 font_size,
                 font_height_offset,
             } => Mm::from(Pt(*lines as f32 * (font_size.0 + font_height_offset.0))),
+            Self::PageBreaks { pages } => {
+                builder.remaining_height_from_cursor()
+                    + Mm((pages - 1) as f32 * builder.document.style().inner_height().0)
+            }
         }
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
-        builder.advance_cursor(match self {
-            Self::Relative(rel) => *rel,
+        match self {
+            Self::Relative(rel) => {
+                builder.advance_cursor(*rel);
+            }
             Self::LineBreaks {
                 lines,
                 font_size,
                 font_height_offset,
-            } => Pt(*lines as f32 * (font_size.0 + font_height_offset.0)),
-        });
-
-        // TODO: Maybe this should be handled on every case
-        if let Self::LineBreaks { .. } = self {
-            builder.reset_cursor_x();
+            } => {
+                builder.advance_cursor(Pt(*lines as f32 * (font_size.0 + font_height_offset.0)));
+            }
+            Self::PageBreaks { pages } => {
+                for _ in 0..*pages {
+                    builder.next_page();
+                }
+            }
         }
+
+        builder.reset_cursor_x();
     }
 }

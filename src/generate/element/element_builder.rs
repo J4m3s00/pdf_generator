@@ -900,7 +900,7 @@ impl<'a> ElementBuilder<'a> {
         self.cursor.x = self.origin.x;
     }
 
-    fn remaining_height_from_cursor(&self) -> Mm {
+    pub fn remaining_height_from_cursor(&self) -> Mm {
         Mm::from(self.cursor.y) - self.document.style().padding.bottom - self.added_padding_bottom
     }
 
@@ -912,7 +912,7 @@ impl<'a> ElementBuilder<'a> {
     /// Updates the origin and cursor to the initial position
     /// Recalculates remaining_height
     /// remaining_width stays the same
-    fn next_page(&mut self) {
+    pub(crate) fn next_page(&mut self) {
         let style = self.document.style().clone();
         let origin = Point {
             x: self.origin.x,

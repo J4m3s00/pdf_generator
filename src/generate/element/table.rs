@@ -1,8 +1,7 @@
 use printpdf::{Greyscale, Mm, Point, Pt};
 use taffy::{
-    AvailableSpace, Display, LengthPercentage, MaxTrackSizingFunction, MinTrackSizingFunction,
-    NodeId, Overflow, Rect, Size, Style, TaffyTree,
-    prelude::{auto, length, minmax},
+    AvailableSpace, Display, NodeId, Overflow, Rect, Size, Style, TaffyTree,
+    prelude::{auto, length},
 };
 
 use crate::generate::{element::Element, font::Font};
