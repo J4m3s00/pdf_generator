@@ -80,7 +80,7 @@ impl Table {
                     x: Pt(layout.padding.left),
                     y: Pt(layout.padding.top),
                 },
-                Some(Pt(layout.content_box_width())),
+                Some(Pt(layout.content_box_width() + 3.0)),
             );
             println!(
                 "Building cell: {}, width: {:?}, height: {:?}",
