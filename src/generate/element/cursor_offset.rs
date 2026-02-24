@@ -1,4 +1,4 @@
-use printpdf::{Mm, Pt};
+use printpdf::Pt;
 
 use crate::generate::{element::Element, font::Font};
 
@@ -30,21 +30,21 @@ impl Element for CursorOffset {
         "Cursor Offset"
     }
 
-    fn calculate_width<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        Mm(0.0)
+    fn calculate_width<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        Pt(0.0)
     }
 
-    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
         match self {
-            Self::Relative(rel) => Mm::from(*rel),
+            Self::Relative(rel) => *rel,
             Self::LineBreaks {
                 lines,
                 font_size,
                 font_height_offset,
-            } => Mm::from(Pt(*lines as f32 * (font_size.0 + font_height_offset.0))),
+            } => Pt(*lines as f32 * (font_size.0 + font_height_offset.0)),
             Self::PageBreaks { pages } => {
                 builder.remaining_height_from_cursor()
-                    + Mm((pages - 1) as f32 * builder.document.style().inner_height().0)
+                    + Pt((pages - 1) as f32 * builder.document.style().inner_height().into_pt().0)
             }
         }
     }

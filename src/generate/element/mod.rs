@@ -1,4 +1,4 @@
-use printpdf::{Mm, Op, Point};
+use printpdf::{Mm, Op, Point, Pt};
 
 use crate::generate::element::element_builder::ElementBuilder;
 
@@ -24,7 +24,7 @@ pub struct BuildResult {
 pub trait Element {
     fn display_name(&self) -> &str;
 
-    fn calculate_width<'a>(&self, builder: &ElementBuilder<'a>) -> Mm;
-    fn calculate_height<'a>(&self, builder: &ElementBuilder<'a>) -> Mm;
+    fn calculate_width<'a>(&self, builder: &ElementBuilder<'a>) -> Pt;
+    fn calculate_height<'a>(&self, builder: &ElementBuilder<'a>) -> Pt;
     fn build<'a>(&self, builder: &mut ElementBuilder<'a>);
 }

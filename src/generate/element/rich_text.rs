@@ -1,4 +1,4 @@
-use printpdf::{Mm, Pt};
+use printpdf::Pt;
 
 use crate::generate::{element::Element, font::Font};
 
@@ -35,18 +35,18 @@ impl Element for RichText {
     fn calculate_width<'a>(
         &self,
         builder: &super::element_builder::ElementBuilder<'a>,
-    ) -> printpdf::Mm {
+    ) -> printpdf::Pt {
         builder.remaining_width_from_cursor()
     }
 
     fn calculate_height<'a>(
         &self,
         builder: &super::element_builder::ElementBuilder<'a>,
-    ) -> printpdf::Mm {
+    ) -> printpdf::Pt {
         let lines = builder.split_rich_text_into_lines(self);
         let height = lines.into_iter().map(|line| line.height.0).sum::<f32>();
 
-        Mm::from(Pt(height))
+        Pt(height)
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {

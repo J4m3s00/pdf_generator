@@ -1,4 +1,4 @@
-use printpdf::Mm;
+use printpdf::{Mm, Pt};
 
 use crate::generate::element::{Element, element_builder::ColumnWidth};
 
@@ -55,9 +55,9 @@ impl Column {
                 let left_width = self
                     .left
                     .calculate_width(builder)
-                    .min(builder.remaining_width_from_cursor() - Mm(50.0));
+                    .min(builder.remaining_width_from_cursor() - Pt(150.0));
 
-                ColumnWidth::Fixed(left_width)
+                ColumnWidth::Fixed(Mm::from(left_width))
             }
         }
     }
@@ -68,10 +68,10 @@ impl Element for Column {
         "Column"
     }
 
-    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
         builder.remaining_width_from_cursor()
     }
-    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
         let column_width = self.widht_to_column_width(builder);
         let (left_builder, right_builder) = builder.generate_column_builder(column_width);
 

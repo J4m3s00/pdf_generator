@@ -1,4 +1,4 @@
-use printpdf::Mm;
+use printpdf::Pt;
 
 use crate::generate::element::Element;
 
@@ -9,12 +9,12 @@ impl Element for Empty {
         "Empty"
     }
 
-    fn calculate_height<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        Mm(0.0)
+    fn calculate_height<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        Pt(0.0)
     }
 
-    fn calculate_width<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        Mm(0.0)
+    fn calculate_width<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        Pt(0.0)
     }
 
     fn build<'a>(&self, _: &mut super::element_builder::ElementBuilder<'a>) {}

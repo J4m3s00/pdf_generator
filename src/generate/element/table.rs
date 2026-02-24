@@ -80,7 +80,13 @@ impl Table {
                     x: Pt(layout.padding.left),
                     y: Pt(layout.padding.top),
                 },
-                Some(Mm::from(Pt(layout.content_box_width()))),
+                Some(Pt(layout.content_box_width())),
+            );
+            println!(
+                "Building cell: {}, width: {:?}, height: {:?}",
+                content.content,
+                Mm::from(Pt(layout.content_box_width())),
+                Mm::from(Pt(layout.content_box_height()))
             );
             builder.cursor.x += Pt(layout.size.width);
         }
@@ -92,11 +98,11 @@ impl Table {
         }
     }
 
-    fn row_height(built: &BuiltTable, nodes: &[NodeId]) -> printpdf::Mm {
-        let mut res = Mm(0.0);
+    fn row_height(built: &BuiltTable, nodes: &[NodeId]) -> printpdf::Pt {
+        let mut res = Pt(0.0);
         for node in nodes.iter() {
             let layout = built.taffy.layout(*node).unwrap();
-            res = res.max(Mm::from(Pt(layout.size.height)))
+            res = res.max(Pt(layout.size.height))
         }
         res
     }
@@ -110,35 +116,35 @@ impl Element for Table {
     fn calculate_width<'a>(
         &self,
         builder: &super::element_builder::ElementBuilder<'a>,
-    ) -> printpdf::Mm {
+    ) -> printpdf::Pt {
         let built = BuiltTable::build(self, builder);
         let root_layout = built.taffy.layout(built.root).unwrap();
 
-        printpdf::Mm::from(Pt(root_layout.size.width))
+        Pt(root_layout.size.width)
     }
 
     fn calculate_height<'a>(
         &self,
         builder: &super::element_builder::ElementBuilder<'a>,
-    ) -> printpdf::Mm {
+    ) -> printpdf::Pt {
         let built = BuiltTable::build(self, builder);
         let mut mut_builder = builder.clone();
-        let mut height = Mm(0.0);
+        let mut height = Pt(0.0);
         if let Some(header_cells) = built.header_cells() {
             let header_height = Self::row_height(&built, header_cells);
             height += header_height;
-            mut_builder.advance_cursor(header_height.into_pt());
+            mut_builder.advance_cursor(header_height);
         }
 
         for row in 0..self.content.len() {
             let cells = built.row_cells(row);
             let row_height = Self::row_height(&built, cells);
             height += row_height;
-            if mut_builder.advance_cursor(row_height.into_pt()) {
+            if mut_builder.advance_cursor(row_height) {
                 if let Some(header_cells) = built.header_cells() {
                     let header_height = Self::row_height(&built, header_cells);
                     height += header_height;
-                    mut_builder.advance_cursor(header_height.into_pt());
+                    mut_builder.advance_cursor(header_height);
                 }
             }
         }
@@ -218,19 +224,20 @@ impl BuiltTable {
 
     fn build(value: &Table, builder: &super::element_builder::ElementBuilder) -> Self {
         let mut taffy = TaffyTree::<CellContent>::new();
+        taffy.disable_rounding();
 
         let grid_style = Style {
             display: Display::Grid,
             size: Size {
-                width: length(builder.remaining_width_from_cursor().into_pt().0),
+                width: length(builder.remaining_width_from_cursor().0),
                 height: auto(),
             },
             min_size: Size {
-                width: length(builder.remaining_width_from_cursor().into_pt().0),
+                width: length(builder.remaining_width_from_cursor().0),
                 height: auto(),
             },
             max_size: Size {
-                width: length(builder.remaining_width_from_cursor().into_pt().0),
+                width: length(builder.remaining_width_from_cursor().0),
                 height: auto(),
             },
             grid_template_columns: vec![
@@ -275,35 +282,43 @@ impl BuiltTable {
         taffy
             .compute_layout_with_measure(
                 root,
-                length(builder.remaining_width_from_cursor().into_pt().0),
-                |_known_dimensions, available_space, _, node_context, _| {
-                    // IMPORTANT: known_dimensions.width is the border-box width (grid area width),
-                    // but available_space.width is pre-adjusted by taffy to the content-box width
-                    // (padding already subtracted). Always use available_space so that measurement
-                    // uses the same width as content_box_width() in the final layout.
+                length(builder.remaining_width_from_cursor().0),
+                |known_dimensions, available_space, _, node_context, _| {
+                    if let Size {
+                        width: Some(width),
+                        height: Some(height),
+                    } = known_dimensions
+                    {
+                        return Size { width, height };
+                    }
+
                     match node_context {
                         None => Size::ZERO,
                         Some(content) => {
+                            let min_text_width = builder
+                                .measure_text_min_content(&content.content, &content.font)
+                                .0;
+                            let max_text_width = builder
+                                .measure_text_manuel(&content.content, &content.font, None)
+                                .0
+                                .0;
+
                             let width = match available_space.width {
-                                AvailableSpace::Definite(w) => w,
-                                AvailableSpace::MinContent => {
-                                    builder
-                                        .measure_text_min_content(&content.content, &content.font)
-                                        .0
+                                AvailableSpace::Definite(w) => {
+                                    // w.min(max_text_width).max(min_text_width)
+                                    w
                                 }
-                                AvailableSpace::MaxContent => {
-                                    builder
-                                        .measure_text_manuel(&content.content, &content.font, None)
-                                        .0
-                                        .0
-                                }
+                                AvailableSpace::MinContent => min_text_width,
+                                AvailableSpace::MaxContent => max_text_width,
                             };
 
                             let measured = builder.measure_text_manuel(
                                 &content.content,
                                 &content.font,
-                                Some(Mm::from(Pt(width))),
+                                Some(Pt(width)),
                             );
+
+                            println!("Measure text: {}, available_space: {:?}, width: {:?}, height: {:?}", content.content, available_space, Mm::from(Pt(width)), Mm::from(measured.1));
 
                             Size {
                                 width,

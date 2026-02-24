@@ -38,7 +38,7 @@ pub struct ElementBuilder<'a> {
     pub(crate) document: &'a Document,
     origin: Point,
     pub cursor: Point,
-    remaining_width: Mm,
+    remaining_width: Pt,
     starting_page: usize,
     pub pages: Vec<Vec<Op>>,
     added_padding_bottom: Mm,
@@ -57,7 +57,7 @@ impl<'a> ElementBuilder<'a> {
             document,
             origin,
             cursor: origin,
-            remaining_width: style.inner_width(),
+            remaining_width: style.inner_width().into_pt(),
             starting_page: 0,
             pages: vec![Vec::new()],
             added_padding_bottom: Mm(0.0),
@@ -86,7 +86,7 @@ impl<'a> ElementBuilder<'a> {
             .unwrap_or_else(|| Pt(0.0))
     }
 
-    pub fn measure_text_manuel(&self, text: &str, font: &Font, max_width: Option<Mm>) -> (Pt, Pt) {
+    pub fn measure_text_manuel(&self, text: &str, font: &Font, max_width: Option<Pt>) -> (Pt, Pt) {
         let no_limit_shaped_text = shape_text(
             self.document.pdf_document(),
             font.font_id(),
@@ -97,7 +97,7 @@ impl<'a> ElementBuilder<'a> {
         );
 
         if let Some(max_width) = max_width {
-            if Pt(no_limit_shaped_text.width) > max_width.into_pt() {
+            if Pt(no_limit_shaped_text.width) > max_width {
                 let shaped_text = shape_text(
                     self.document.pdf_document(),
                     font.font_id(),
@@ -126,7 +126,7 @@ impl<'a> ElementBuilder<'a> {
             None,
         );
 
-        if Pt(no_limit_shaped_text.width) > self.remaining_width_from_cursor().into_pt() {
+        if Pt(no_limit_shaped_text.width) > self.remaining_width_from_cursor() {
             let shaped_text = shape_text(
                 self.document.pdf_document(),
                 font.font_id(),
@@ -156,7 +156,7 @@ impl<'a> ElementBuilder<'a> {
             font.font_size(),
             font.font_height_offset(),
             text,
-            Some(Mm::from(width)),
+            Some(width),
         );
 
         let Some(first_line) = shaped_text.lines.first() else {
@@ -248,7 +248,7 @@ impl<'a> ElementBuilder<'a> {
     }
 
     pub fn draw_rect(&mut self, size: Pt) {
-        if self.remaining_height_from_cursor().into_pt() < size {
+        if self.remaining_height_from_cursor() < size {
             self.next_page();
         }
 
@@ -283,7 +283,8 @@ impl<'a> ElementBuilder<'a> {
     pub fn draw_line(&mut self, padding: &Padding, outline: &LineStyle) {
         self.advance_cursor(padding.top.into_pt());
 
-        let width = self.remaining_width_from_cursor() - padding.left - padding.right;
+        let width =
+            self.remaining_width_from_cursor() - padding.left.into_pt() - padding.right.into_pt();
 
         let mut ops = Vec::new();
         ops.push(Op::SaveGraphicsState);
@@ -306,7 +307,7 @@ impl<'a> ElementBuilder<'a> {
                     LinePoint {
                         bezier: false,
                         p: Point {
-                            x: self.cursor.x + width.into_pt() + padding.left.into_pt(),
+                            x: self.cursor.x + width + padding.left.into_pt(),
                             y: self.cursor.y,
                         },
                     },
@@ -328,14 +329,14 @@ impl<'a> ElementBuilder<'a> {
     pub fn calculate_flex_height<'element>(
         &self,
         elements: impl IntoIterator<Item = Box<&'element (impl Element + 'element)>>,
-        space_x: Mm,
-        space_y: Mm,
-    ) -> Mm {
+        space_x: Pt,
+        space_y: Pt,
+    ) -> Pt {
         let remaining_width = self.remaining_width_from_cursor();
 
         let mut x_cursor = self.cursor.x;
-        let mut current_measured_height = Mm(0.0);
-        let mut current_line_height = Mm(0.0);
+        let mut current_measured_height = Pt(0.0);
+        let mut current_line_height = Pt(0.0);
 
         for element in elements.into_iter() {
             let width = element.calculate_width(self);
@@ -345,15 +346,15 @@ impl<'a> ElementBuilder<'a> {
                 continue;
             }
 
-            let x_offset = Mm::from(x_cursor - self.origin.x);
+            let x_offset = x_cursor - self.origin.x;
             let current_remaining_width = remaining_width - x_offset;
             if width > current_remaining_width {
                 // Push to next line
                 x_cursor = self.origin.x;
                 current_measured_height += current_line_height + space_y;
-                current_line_height = Mm(0.0);
+                current_line_height = Pt(0.0);
             }
-            x_cursor += (width + space_x).into_pt();
+            x_cursor += width + space_x;
 
             current_line_height = current_line_height.max(element.calculate_height(self));
         }
@@ -365,12 +366,12 @@ impl<'a> ElementBuilder<'a> {
     pub fn push_flex<'e>(
         &mut self,
         elements: impl Iterator<Item = Box<&'e (impl Element + 'e)>>,
-        space_x: Mm,
-        space_y: Mm,
+        space_x: Pt,
+        space_y: Pt,
     ) {
         let remaining_width = self.remaining_width_from_cursor();
 
-        let mut current_line_height = Mm(0.0);
+        let mut current_line_height = Pt(0.0);
         for element in elements {
             let width = element.calculate_width(self);
             let height = element.calculate_height(self);
@@ -385,25 +386,25 @@ impl<'a> ElementBuilder<'a> {
 
             if width > self.remaining_width_from_cursor() {
                 // Go to the next line
-                self.advance_cursor((current_line_height + space_y).into_pt());
+                self.advance_cursor(current_line_height + space_y);
                 self.reset_cursor_x();
-                current_line_height = Mm(0.0);
+                current_line_height = Pt(0.0);
             }
 
             if height > self.remaining_height_from_cursor() {
                 self.reset_cursor_x();
                 self.next_page();
-                current_line_height = Mm(0.0);
+                current_line_height = Pt(0.0);
             }
 
             current_line_height = current_line_height.max(height);
 
             element.build(self);
 
-            self.cursor.x += space_x.into_pt();
+            self.cursor.x += space_x;
         }
 
-        self.advance_cursor(current_line_height.into_pt());
+        self.advance_cursor(current_line_height);
         self.reset_cursor_x();
     }
 
@@ -456,7 +457,7 @@ impl<'a> ElementBuilder<'a> {
         width: ColumnWidth,
     ) -> (ElementBuilder<'a>, ElementBuilder<'a>) {
         let left_width = match width {
-            ColumnWidth::Fixed(mm) => mm,
+            ColumnWidth::Fixed(mm) => mm.into_pt(),
             ColumnWidth::Percent(fr) => self.remaining_width_from_cursor() * fr,
         };
 
@@ -472,7 +473,7 @@ impl<'a> ElementBuilder<'a> {
             errors: Vec::new(),
         };
         let right_origin = Point {
-            x: self.cursor.x + left_width.into_pt(),
+            x: self.cursor.x + left_width,
             y: self.cursor.y,
         };
 
@@ -501,11 +502,11 @@ impl<'a> ElementBuilder<'a> {
     pub fn generate_group_builder(
         &self,
         padding: &Padding,
-        try_same_page: Option<Mm>,
+        try_same_page: Option<Pt>,
     ) -> ElementBuilder<'a> {
         let (origin, new_page) = match try_same_page {
             Some(height)
-                if height <= self.document.style().inner_height()
+                if height <= self.document.style().inner_height().into_pt()
                     && self.remaining_height_from_cursor() < height =>
             {
                 // We can fit the group on a single page, but need to go to the next
@@ -531,7 +532,7 @@ impl<'a> ElementBuilder<'a> {
             document: self.document,
             origin,
             cursor: origin,
-            remaining_width: self.remaining_width - (padding.left + padding.right),
+            remaining_width: self.remaining_width - (padding.left + padding.right).into_pt(),
             // This seems to mess with the new pages, when creatin a checkbox group that will be pushed to the next page
             starting_page: self.pages.len() - if new_page { 0 } else { 1 },
             pages: vec![Vec::new()],
@@ -541,7 +542,7 @@ impl<'a> ElementBuilder<'a> {
     }
 
     pub fn draw_outline(&mut self, padding: &Padding, outline: &LineStyle) {
-        let width = self.remaining_width + padding.left + padding.right;
+        let width = self.remaining_width + (padding.left + padding.right).into_pt();
 
         {
             // Draw the top
@@ -567,7 +568,7 @@ impl<'a> ElementBuilder<'a> {
                         },
                         LinePoint {
                             p: Point {
-                                x: self.origin.x - padding.left.into_pt() + width.into_pt(),
+                                x: self.origin.x - padding.left.into_pt() + width,
                                 y: self.origin.y + padding.top.into_pt(),
                             },
                             bezier: false,
@@ -606,7 +607,7 @@ impl<'a> ElementBuilder<'a> {
                         },
                         LinePoint {
                             p: Point {
-                                x: self.cursor.x - padding.left.into_pt() + width.into_pt(),
+                                x: self.cursor.x - padding.left.into_pt() + width,
                                 y: self.cursor.y - padding.bottom.into_pt(),
                             },
                             bezier: false,
@@ -662,14 +663,14 @@ impl<'a> ElementBuilder<'a> {
                     points: vec![
                         LinePoint {
                             p: Point {
-                                x: self.origin.x - padding.left.into_pt() + width.into_pt(),
+                                x: self.origin.x - padding.left.into_pt() + width,
                                 y: self.origin.y + padding.top.into_pt(),
                             },
                             bezier: false,
                         },
                         LinePoint {
                             p: Point {
-                                x: self.cursor.x - padding.left.into_pt() + width.into_pt(),
+                                x: self.cursor.x - padding.left.into_pt() + width,
                                 y: self.cursor.y - padding.bottom.into_pt(),
                             },
                             bezier: false,
@@ -720,14 +721,14 @@ impl<'a> ElementBuilder<'a> {
                         points: vec![
                             LinePoint {
                                 p: Point {
-                                    x: self.origin.x - padding.left.into_pt() + width.into_pt(),
+                                    x: self.origin.x - padding.left.into_pt() + width,
                                     y: self.origin.y + padding.top.into_pt(),
                                 },
                                 bezier: false,
                             },
                             LinePoint {
                                 p: Point {
-                                    x: self.cursor.x - padding.left.into_pt() + width.into_pt(),
+                                    x: self.cursor.x - padding.left.into_pt() + width,
                                     y: self.document.style().padding.bottom.into_pt(),
                                 },
                                 bezier: false,
@@ -780,7 +781,7 @@ impl<'a> ElementBuilder<'a> {
                         points: vec![
                             LinePoint {
                                 p: Point {
-                                    x: self.origin.x - padding.left.into_pt() + width.into_pt(),
+                                    x: self.origin.x - padding.left.into_pt() + width,
                                     y: self.document.style().height.into_pt()
                                         - self.document.style().padding.top.into_pt(),
                                 },
@@ -788,7 +789,7 @@ impl<'a> ElementBuilder<'a> {
                             },
                             LinePoint {
                                 p: Point {
-                                    x: self.cursor.x - padding.left.into_pt() + width.into_pt(),
+                                    x: self.cursor.x - padding.left.into_pt() + width,
                                     y: self.cursor.y - padding.bottom.into_pt(),
                                 },
                                 bezier: false,
@@ -844,7 +845,7 @@ impl<'a> ElementBuilder<'a> {
                         points: vec![
                             LinePoint {
                                 p: Point {
-                                    x: self.origin.x - padding.left.into_pt() + width.into_pt(),
+                                    x: self.origin.x - padding.left.into_pt() + width,
                                     y: self.document.style().height.into_pt()
                                         - self.document.style().padding.top.into_pt(),
                                 },
@@ -852,7 +853,7 @@ impl<'a> ElementBuilder<'a> {
                             },
                             LinePoint {
                                 p: Point {
-                                    x: self.cursor.x - padding.left.into_pt() + width.into_pt(),
+                                    x: self.cursor.x - padding.left.into_pt() + width,
                                     y: self.document.style().padding.bottom.into_pt(),
                                 },
                                 bezier: false,
@@ -877,7 +878,7 @@ impl<'a> ElementBuilder<'a> {
     ///
     /// Returns true if we had to go to the next page
     pub fn advance_cursor(&mut self, dy: Pt) -> bool {
-        let remaining_height = self.remaining_height_from_cursor().into_pt();
+        let remaining_height = self.remaining_height_from_cursor();
         if dy > remaining_height {
             // We need to go to the next page
             self.next_page();
@@ -900,12 +901,14 @@ impl<'a> ElementBuilder<'a> {
         self.cursor.x = self.origin.x;
     }
 
-    pub fn remaining_height_from_cursor(&self) -> Mm {
-        Mm::from(self.cursor.y) - self.document.style().padding.bottom - self.added_padding_bottom
+    pub fn remaining_height_from_cursor(&self) -> Pt {
+        self.cursor.y
+            - self.document.style().padding.bottom.into_pt()
+            - self.added_padding_bottom.into_pt()
     }
 
-    pub fn remaining_width_from_cursor(&self) -> Mm {
-        let x_offset = Mm::from(self.cursor.x - self.origin.x);
+    pub fn remaining_width_from_cursor(&self) -> Pt {
+        let x_offset = self.cursor.x - self.origin.x;
         self.remaining_width - x_offset
     }
 
@@ -959,7 +962,7 @@ impl<'a> ElementBuilder<'a> {
                 font.font_size(),
                 font.font_height_offset(),
                 &text,
-                Some(self.remaining_width - Mm::from(current_line_width)),
+                Some(self.remaining_width - current_line_width),
             );
 
             let width = Pt(if shaped_text.lines.len() == 1 {
@@ -1063,7 +1066,7 @@ impl<'a> ElementBuilder<'a> {
         text: &str,
         font: &Font,
         offset: Point,
-        max_width: Option<Mm>,
+        max_width: Option<Pt>,
     ) {
         let shaped_text = shape_text(
             self.document.pdf_document(),

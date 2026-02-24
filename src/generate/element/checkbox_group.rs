@@ -34,9 +34,9 @@ impl Element for CheckboxGroup {
         "Checkbox Group"
     }
 
-    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        self.checkboxes.iter().fold(Mm(0.0), |t, cb| {
-            t + Mm::from(
+    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        self.checkboxes.iter().fold(Pt(0.0), |t, cb| {
+            t + Pt::from(
                 builder.measure_text(cb.as_str(), &self.font).0
                     + Pt(4.0)
                     + self.font.font_size()
@@ -45,8 +45,8 @@ impl Element for CheckboxGroup {
         })
     }
 
-    fn calculate_height<'a>(&self, _builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        Mm::from(self.font.font_size() + self.font.font_height_offset())
+    fn calculate_height<'a>(&self, _builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        self.font.font_size() + self.font.font_height_offset()
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
@@ -85,7 +85,7 @@ impl Element for CheckboxGroup {
             next_builder = next_side;
         }
 
-        group_builder.advance_cursor(self.calculate_height(builder).into_pt());
+        group_builder.advance_cursor(self.calculate_height(builder));
         let cursor = group_builder.cursor.y;
 
         builder.merge(group_builder);

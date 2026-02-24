@@ -1,4 +1,4 @@
-use printpdf::{FontId, Mm, PdfDocument, Pt, ShapedText, TextShapingOptions};
+use printpdf::{FontId, PdfDocument, Pt, ShapedText, TextShapingOptions};
 
 fn space_between_newlines(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
@@ -21,7 +21,7 @@ pub fn shape_text(
     font_size: Pt,
     font_height_offset: Pt,
     text: &str,
-    max_width: Option<Mm>,
+    max_width: Option<Pt>,
 ) -> ShapedText {
     if !doc.resources.fonts.map.contains_key(&font) {
         panic!("Font resource not found for font ID: {:?}", font);
@@ -34,7 +34,7 @@ pub fn shape_text(
         font_size,
         //line_height: Some(Pt(font_size.0 + font_height_offset)),
         line_height: Some(font_size + font_height_offset),
-        max_width: max_width.map(Pt::from),
+        max_width: max_width,
         ..Default::default()
     };
 
@@ -67,10 +67,9 @@ pub fn split_shaped_text(
     mut text: ShapedText,
     font_size: Pt,
     font_height_offset: Pt,
-    max_height: Mm,
+    max_height: Pt,
 ) -> (ShapedText, Option<ShapedText>) {
-    let max_height_pt = max_height.into_pt();
-    let fit_lines = (max_height_pt / (font_size + font_height_offset)) as usize;
+    let fit_lines = (max_height / (font_size + font_height_offset)) as usize;
 
     if fit_lines >= text.lines.len() {
         return (text, None);

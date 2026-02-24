@@ -1,4 +1,4 @@
-use printpdf::Mm;
+use printpdf::{Mm, Pt};
 
 use crate::generate::{
     element::{Element, image::Image},
@@ -7,26 +7,26 @@ use crate::generate::{
 
 pub struct ImageFlex {
     children: Vec<Image>,
-    space_x: Mm,
-    space_y: Mm,
+    space_x: Pt,
+    space_y: Pt,
 }
 
 impl ImageFlex {
     pub fn new() -> Self {
         ImageFlex {
             children: Vec::new(),
-            space_x: Mm(0.0),
-            space_y: Mm(0.0),
+            space_x: Pt(0.0),
+            space_y: Pt(0.0),
         }
     }
 
     pub fn with_space_x(mut self, gap: Mm) -> Self {
-        self.space_x = gap;
+        self.space_x = gap.into_pt();
         self
     }
 
     pub fn with_space_y(mut self, gap: Mm) -> Self {
-        self.space_y = gap;
+        self.space_y = gap.into_pt();
         self
     }
 
@@ -40,17 +40,17 @@ impl Element for ImageFlex {
         "Image Flex"
     }
 
-    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
         self.children
             .iter()
-            .fold(Mm(0.0), |width, elem| elem.calculate_width(builder) + width)
+            .fold(Pt(0.0), |width, elem| elem.calculate_width(builder) + width)
             .min(builder.remaining_width_from_cursor())
     }
 
     fn calculate_height<'a>(
         &self,
         builder: &super::element_builder::ElementBuilder<'a>,
-    ) -> printpdf::Mm {
+    ) -> printpdf::Pt {
         // Create a group builder to calculate the height of children
         let group_builder = builder.generate_group_builder(&Padding::none(), None);
         group_builder.calculate_flex_height(

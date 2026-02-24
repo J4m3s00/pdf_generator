@@ -1,4 +1,4 @@
-use printpdf::Mm;
+use printpdf::Pt;
 
 use crate::generate::{element::Element, outline::LineStyle, padding::Padding};
 
@@ -47,27 +47,27 @@ impl Element for Group {
         "Group"
     }
 
-    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
         let group_builder = builder.generate_group_builder(&self.padding, None);
 
         self.elements
             .iter()
             .map(|elem| elem.calculate_width(&group_builder))
-            .fold(Mm(0.0), |v, h| v + h)
-            + self.padding.left
-            + self.padding.right
+            .fold(Pt(0.0), |v, h| v + h)
+            + self.padding.left.into_pt()
+            + self.padding.right.into_pt()
     }
 
-    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
         // We need to compute the text height with the padding of the group
         let group_builder = builder.generate_group_builder(&self.padding, None);
 
         self.elements
             .iter()
             .map(|elem| elem.calculate_height(&group_builder))
-            .fold(Mm(0.0), |v, h| v + h)
-            + self.padding.top
-            + self.padding.bottom
+            .fold(Pt(0.0), |v, h| v + h)
+            + self.padding.top.into_pt()
+            + self.padding.bottom.into_pt()
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {

@@ -1,4 +1,4 @@
-use printpdf::Mm;
+use printpdf::Pt;
 
 use crate::generate::{
     element::{Element, element_builder::ElementBuilder},
@@ -25,12 +25,12 @@ impl Element for Paragraph {
         "Paragraph"
     }
 
-    fn calculate_width<'a>(&self, builder: &ElementBuilder<'a>) -> Mm {
-        Mm::from(builder.measure_text(self.text.as_str(), &self.font).0)
+    fn calculate_width<'a>(&self, builder: &ElementBuilder<'a>) -> Pt {
+        builder.measure_text(self.text.as_str(), &self.font).0
     }
 
-    fn calculate_height<'a>(&self, builder: &ElementBuilder<'a>) -> Mm {
-        Mm::from(builder.measure_text(self.text.as_str(), &self.font).1)
+    fn calculate_height<'a>(&self, builder: &ElementBuilder<'a>) -> Pt {
+        builder.measure_text(self.text.as_str(), &self.font).1
     }
 
     fn build<'a>(&self, builder: &mut ElementBuilder<'a>) {

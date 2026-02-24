@@ -1,4 +1,4 @@
-use printpdf::Mm;
+use printpdf::Pt;
 
 use crate::generate::{element::Element, outline::LineStyle, padding::Padding};
 
@@ -18,11 +18,11 @@ impl Element for Line {
         "Line"
     }
 
-    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
+    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
         builder.remaining_width_from_cursor()
     }
-    fn calculate_height<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        Mm::from(self.outline.thickness) + self.padding.top + self.padding.bottom
+    fn calculate_height<'a>(&self, _: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        self.outline.thickness + self.padding.top.into_pt() + self.padding.bottom.into_pt()
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {

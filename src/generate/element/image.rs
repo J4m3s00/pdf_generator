@@ -1,4 +1,4 @@
-use printpdf::{Mm, XObjectId};
+use printpdf::{Mm, Pt, XObjectId};
 
 use crate::generate::element::Element;
 
@@ -21,12 +21,12 @@ impl Element for Image {
         "Image"
     }
 
-    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        Mm::from(builder.measure_image(self).0)
+    fn calculate_width<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        builder.measure_image(self).0
     }
 
-    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Mm {
-        Mm::from(builder.measure_image(self).1)
+    fn calculate_height<'a>(&self, builder: &super::element_builder::ElementBuilder<'a>) -> Pt {
+        builder.measure_image(self).1
     }
 
     fn build<'a>(&self, builder: &mut super::element_builder::ElementBuilder<'a>) {
