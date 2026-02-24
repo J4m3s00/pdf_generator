@@ -80,9 +80,15 @@ impl Table {
                     x: Pt(layout.padding.left),
                     y: Pt(layout.padding.top),
                 },
-                Some(Mm::from(Pt(layout.size.width))),
+                Some(Mm::from(Pt(layout.content_box_width()))),
             );
-            builder.cursor.x += Pt(layout.content_size.width);
+            builder.cursor.x += Pt(layout.size.width);
+            println!(
+                "Building cell {} with size: {:?} x {:?}",
+                content.content,
+                Mm::from(Pt(layout.content_box_width())),
+                Mm::from(Pt(layout.content_box_height()))
+            );
         }
         if col == self.num_cols - 1 {
             builder.reset_cursor_x();
@@ -282,7 +288,6 @@ impl BuiltTable {
                         height: Some(height),
                     } = known_dimensions
                     {
-                        println!("Known dimensions: width = {}, height = {}", width, height);
                         return Size { width, height };
                     };
 
@@ -315,6 +320,14 @@ impl BuiltTable {
                             );
 
                             let height = known_dimensions.height.unwrap_or(measured.1.0);
+
+                            println!(
+                                "Measured cell content: '{}', available_space: {:?}, width: {:?}, height: {:?}",
+                                content.content,
+                                available_space,
+                                Mm::from(Pt(width)),
+                                Mm::from(Pt(height))
+                            );
 
                             Size { width, height }
                         }
