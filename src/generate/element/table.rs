@@ -83,12 +83,6 @@ impl Table {
                 Some(Mm::from(Pt(layout.content_box_width()))),
             );
             builder.cursor.x += Pt(layout.size.width);
-            println!(
-                "Building cell {} with size: {:?} x {:?}",
-                content.content,
-                Mm::from(Pt(layout.content_box_width())),
-                Mm::from(Pt(layout.content_box_height()))
-            );
         }
         if col == self.num_cols - 1 {
             builder.reset_cursor_x();
@@ -282,54 +276,39 @@ impl BuiltTable {
             .compute_layout_with_measure(
                 root,
                 length(builder.remaining_width_from_cursor().into_pt().0),
-                |known_dimensions, available_space, _, node_context, _| {
-                    if let Size {
-                        width: Some(width),
-                        height: Some(height),
-                    } = known_dimensions
-                    {
-                        return Size { width, height };
-                    };
-
+                |_known_dimensions, available_space, _, node_context, _| {
+                    // IMPORTANT: known_dimensions.width is the border-box width (grid area width),
+                    // but available_space.width is pre-adjusted by taffy to the content-box width
+                    // (padding already subtracted). Always use available_space so that measurement
+                    // uses the same width as content_box_width() in the final layout.
                     match node_context {
                         None => Size::ZERO,
                         Some(content) => {
-                            // Determine the width to use for measurement
-                            let width = known_dimensions.width.unwrap_or_else(|| {
-                                let min_line_width = builder
-                                    .measure_text_min_content(&content.content, &content.font)
-                                    .0;
-                                let max_line_width = builder
-                                    .measure_text_manuel(&content.content, &content.font, None)
-                                    .0
-                                    .0;
-                                match available_space.width {
-                                    AvailableSpace::Definite(w) => {
-                                        w.min(max_line_width).max(min_line_width)
-                                    }
-                                    AvailableSpace::MinContent => min_line_width,
-                                    AvailableSpace::MaxContent => max_line_width,
+                            let width = match available_space.width {
+                                AvailableSpace::Definite(w) => w,
+                                AvailableSpace::MinContent => {
+                                    builder
+                                        .measure_text_min_content(&content.content, &content.font)
+                                        .0
                                 }
-                            });
+                                AvailableSpace::MaxContent => {
+                                    builder
+                                        .measure_text_manuel(&content.content, &content.font, None)
+                                        .0
+                                        .0
+                                }
+                            };
 
-                            // Measure text at the determined width to get the height
                             let measured = builder.measure_text_manuel(
                                 &content.content,
                                 &content.font,
                                 Some(Mm::from(Pt(width))),
                             );
 
-                            let height = known_dimensions.height.unwrap_or(measured.1.0);
-
-                            println!(
-                                "Measured cell content: '{}', available_space: {:?}, width: {:?}, height: {:?}",
-                                content.content,
-                                available_space,
-                                Mm::from(Pt(width)),
-                                Mm::from(Pt(height))
-                            );
-
-                            Size { width, height }
+                            Size {
+                                width,
+                                height: measured.1.0,
+                            }
                         }
                     }
                 },
