@@ -82,12 +82,6 @@ impl Table {
                 },
                 Some(Pt(layout.content_box_width() + 3.0)),
             );
-            println!(
-                "Building cell: {}, width: {:?}, height: {:?}",
-                content.content,
-                Mm::from(Pt(layout.content_box_width())),
-                Mm::from(Pt(layout.content_box_height()))
-            );
             builder.cursor.x += Pt(layout.size.width);
         }
         if col == self.num_cols - 1 {
@@ -317,8 +311,6 @@ impl BuiltTable {
                                 &content.font,
                                 Some(Pt(width)),
                             );
-
-                            println!("Measure text: {}, available_space: {:?}, width: {:?}, height: {:?}", content.content, available_space, Mm::from(Pt(width)), Mm::from(measured.1));
 
                             Size {
                                 width,
