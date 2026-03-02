@@ -1028,7 +1028,7 @@ impl<'a> ElementBuilder<'a> {
                 );
 
                 for (index, line) in shaped_rest.lines.iter().enumerate() {
-                    let line_text = line
+                    let mut line_text = line
                         .words
                         .iter()
                         .map(|w| w.text.as_str())
@@ -1056,6 +1056,8 @@ impl<'a> ElementBuilder<'a> {
                             rest_text.chars().rev().take_while(|&c| c == ' ').count() as f32;
 
                         width += space_width * spaces_at_end;
+
+                        line_text += &" ".repeat(spaces_at_end as usize);
                     }
 
                     lines.push(RichTextLine {
