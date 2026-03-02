@@ -976,15 +976,6 @@ impl<'a> ElementBuilder<'a> {
                 )
                 .width
             } else {
-                // let space_advance_px =
-                //     shaped_words.get_space_advance_px(text_layout_options.font_size_px);
-                // let word_spacing_px = space_advance_px
-                //     * text_layout_options
-                //         .word_spacing
-                //         .as_ref()
-                //         .copied()
-                //         .unwrap_or(DEFAULT_WORD_SPACING);
-
                 shaped_text
                     .lines
                     .first()
@@ -1011,7 +1002,7 @@ impl<'a> ElementBuilder<'a> {
                     .join("")
             };
 
-            let rest_text = &text[line_text.len()..text.len()];
+            let rest_text = &text[line_text.len()..].trim_start();
 
             current_line.parts.push(RichTextLinePart {
                 text: line_text,
@@ -1035,7 +1026,8 @@ impl<'a> ElementBuilder<'a> {
                     rest_text,
                     Some(self.remaining_width),
                 );
-                for line in shaped_rest.lines.iter() {
+
+                for (index, line) in shaped_rest.lines.iter().enumerate() {
                     let line_text = line
                         .words
                         .iter()
@@ -1043,7 +1035,28 @@ impl<'a> ElementBuilder<'a> {
                         .collect::<Vec<_>>()
                         .join("");
 
-                    let width = line.words.iter().map(|w| w.width).sum::<f32>();
+                    let mut width = line.words.iter().map(|w| w.width).sum::<f32>();
+
+                    if index == shaped_rest.lines.len() - 1 {
+                        // Count spaces at the end of the rest_text
+                        let parsed_font = self
+                            .document
+                            .pdf_document()
+                            .resources
+                            .fonts
+                            .map
+                            .get(&font.font_id())
+                            .expect("Font not loaded");
+
+                        let space_width = parsed_font.get_space_width().unwrap_or_default() as f32
+                            / parsed_font.font_metrics.units_per_em as f32
+                            * font.font_size().0;
+
+                        let spaces_at_end =
+                            rest_text.chars().rev().take_while(|&c| c == ' ').count() as f32;
+
+                        width += space_width * spaces_at_end;
+                    }
 
                     lines.push(RichTextLine {
                         parts: vec![RichTextLinePart {
