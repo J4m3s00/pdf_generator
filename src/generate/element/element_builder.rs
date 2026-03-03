@@ -954,8 +954,6 @@ impl<'a> ElementBuilder<'a> {
                 continue;
             }
 
-            let current_line = lines.last_mut().expect("We always have one line");
-
             let shaped_text = shape_text(
                 self.document.pdf_document(),
                 font.font_id(),
@@ -986,6 +984,47 @@ impl<'a> ElementBuilder<'a> {
                     .sum()
             });
 
+            let (width, shaped_text) = if width > self.remaining_width - current_line_width {
+                // If we cant fit on the current line anymore, we go to the next line.
+                current_line_width = Pt(0.0);
+                current_line_height = Pt(0.0);
+                lines.push(RichTextLine::default());
+
+                let shaped_text = shape_text(
+                    self.document.pdf_document(),
+                    font.font_id(),
+                    font.font_size(),
+                    font.font_height_offset(),
+                    &text,
+                    Some(self.remaining_width - current_line_width),
+                );
+
+                let width = Pt(if shaped_text.lines.len() == 1 {
+                    shape_text(
+                        self.document.pdf_document(),
+                        font.font_id(),
+                        font.font_size(),
+                        font.font_height_offset(),
+                        &text,
+                        None,
+                    )
+                    .width
+                } else {
+                    shaped_text
+                        .lines
+                        .first()
+                        .expect("For now")
+                        .words
+                        .iter()
+                        .map(|w| w.width)
+                        .sum()
+                });
+
+                (width, shaped_text)
+            } else {
+                (width, shaped_text)
+            };
+
             let height = font.font_size() + font.font_height_offset();
 
             let line_text = if shaped_text.lines.len() == 1 {
@@ -1003,6 +1042,8 @@ impl<'a> ElementBuilder<'a> {
             };
 
             let rest_text = &text[line_text.len()..].trim_start();
+
+            let current_line = lines.last_mut().expect("We always have one line");
 
             current_line.parts.push(RichTextLinePart {
                 text: line_text,
