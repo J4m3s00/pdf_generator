@@ -14,6 +14,8 @@ use crate::generate::{
     element::{Element, element_builder::ElementBuilder, image::Image},
     font::Font,
     padding::Padding,
+    page_number::{PageNumberOptions, PageNumberPosition},
+    text_gen::shape_text,
 };
 
 #[derive(Clone, Debug)]
@@ -61,6 +63,7 @@ pub struct Document {
 
     footer_img: Option<DocumentImage>,
     header_img: Option<(DocumentImage, Mm)>,
+    page_numbers: Option<PageNumberOptions>,
 
     default_font: Option<Font>,
 
@@ -87,6 +90,7 @@ impl Document {
             },
             footer_img: None,
             header_img: None,
+            page_numbers: None,
             default_font: None,
             default_font_size,
             default_font_height_offset,
@@ -220,6 +224,14 @@ impl Document {
         });
     }
 
+    /// Enables page numbers (rendered as `current/total`, e.g. `3/10`) on every page.
+    ///
+    /// See [`PageNumberOptions`] for the available configuration (position, font,
+    /// color, and whether to skip the first page).
+    pub fn set_page_numbers(&mut self, options: PageNumberOptions) {
+        self.page_numbers = Some(options);
+    }
+
     /// Saves the document to disk at the specified path.
     ///
     /// If the path is a directory, the document will be saved with its title as the filename.
@@ -285,11 +297,19 @@ impl Document {
             element.build(&mut current_builder);
         }
 
+        let total_pages = current_builder.pages.len();
+
         let pages = current_builder
             .pages
             .into_iter()
-            .map(|mut page| {
+            .enumerate()
+            .map(|(index, mut page)| {
                 page.extend_from_slice(&footer_ops);
+
+                if let Some(page_number_ops) = self.generate_page_number_ops(index, total_pages) {
+                    page.extend(page_number_ops);
+                }
+
                 PdfPage::new(self.style.width, self.style.height, page)
             })
             .collect();
@@ -382,5 +402,64 @@ impl Document {
         } else {
             Vec::new()
         }
+    }
+
+    /// Generates the ops that render the `current/total` page number text for
+    /// the page at `page_index` (0-based), or `None` if page numbers are
+    /// disabled or the page should be skipped.
+    fn generate_page_number_ops(&self, page_index: usize, total_pages: usize) -> Option<Vec<Op>> {
+        let options = self.page_numbers.as_ref()?;
+
+        if page_index == 0 && options.skip_first_page {
+            return None;
+        }
+
+        let text = format!("{}/{}", page_index + 1, total_pages);
+
+        let shaped_text = shape_text(
+            &self.pdf_document,
+            options.font.font_id(),
+            options.font.font_size(),
+            options.font.font_height_offset(),
+            &text,
+            None,
+        );
+
+        let text_width = Pt(shaped_text.width);
+        let text_height = Pt(shaped_text.height);
+
+        let page_width = self.style.width.into_pt();
+        let page_height = self.style.height.into_pt();
+
+        let (x, y) = match &options.position {
+            PageNumberPosition::TopLeft(offset_x, offset_y) => (
+                offset_x.into_pt(),
+                page_height - offset_y.into_pt() - text_height,
+            ),
+            PageNumberPosition::TopRight(offset_x, offset_y) => (
+                page_width - offset_x.into_pt() - text_width,
+                page_height - offset_y.into_pt() - text_height,
+            ),
+            PageNumberPosition::BottomLeft(offset_x, offset_y) => {
+                (offset_x.into_pt(), offset_y.into_pt())
+            }
+            PageNumberPosition::BottomRight(offset_x, offset_y) => {
+                (page_width - offset_x.into_pt() - text_width, offset_y.into_pt())
+            }
+        };
+
+        let mut ops = vec![
+            Op::SaveGraphicsState,
+            Op::SetFillColor {
+                col: printpdf::Color::Rgb(options.color.clone()),
+            },
+        ];
+        ops.extend(shaped_text.get_ops(Point {
+            x,
+            y: y + text_height,
+        }));
+        ops.push(Op::RestoreGraphicsState);
+
+        Some(ops)
     }
 }

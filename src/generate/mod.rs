@@ -4,4 +4,5 @@ pub mod element;
 pub mod font;
 pub mod outline;
 pub mod padding;
+pub mod page_number;
 pub mod text_gen;
