@@ -438,7 +438,7 @@ impl Document {
         let top_boundary = if page_index == 0 {
             self.header_img
                 .as_ref()
-                .map(|(header, padding)| header.position.y + padding.into_pt())
+                .map(|(header, padding)| header.position.y - padding.into_pt())
                 .unwrap_or(page_height)
         } else {
             page_height
