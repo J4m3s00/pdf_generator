@@ -438,7 +438,7 @@ impl Document {
         let top_boundary = if page_index == 0 {
             self.header_img
                 .as_ref()
-                .map(|(header, _)| header.position.y)
+                .map(|(header, padding)| header.position.y + padding.into_pt())
                 .unwrap_or(page_height)
         } else {
             page_height
@@ -456,9 +456,10 @@ impl Document {
             PageNumberPosition::BottomLeft(offset_x, offset_y) => {
                 (offset_x.into_pt(), offset_y.into_pt())
             }
-            PageNumberPosition::BottomRight(offset_x, offset_y) => {
-                (page_width - offset_x.into_pt() - text_width, offset_y.into_pt())
-            }
+            PageNumberPosition::BottomRight(offset_x, offset_y) => (
+                page_width - offset_x.into_pt() - text_width,
+                offset_y.into_pt(),
+            ),
         };
 
         let mut ops = vec![
