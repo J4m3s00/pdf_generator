@@ -431,14 +431,27 @@ impl Document {
         let page_width = self.style.width.into_pt();
         let page_height = self.style.height.into_pt();
 
+        // On the first page, if a header image is present, its bottom edge
+        // becomes the effective "top" of the page for the purposes of
+        // top-anchored page numbers, so the text never ends up rendered on
+        // top of the header image.
+        let top_boundary = if page_index == 0 {
+            self.header_img
+                .as_ref()
+                .map(|(header, _)| header.position.y)
+                .unwrap_or(page_height)
+        } else {
+            page_height
+        };
+
         let (x, y) = match &options.position {
             PageNumberPosition::TopLeft(offset_x, offset_y) => (
                 offset_x.into_pt(),
-                page_height - offset_y.into_pt() - text_height,
+                top_boundary - offset_y.into_pt() - text_height,
             ),
             PageNumberPosition::TopRight(offset_x, offset_y) => (
                 page_width - offset_x.into_pt() - text_width,
-                page_height - offset_y.into_pt() - text_height,
+                top_boundary - offset_y.into_pt() - text_height,
             ),
             PageNumberPosition::BottomLeft(offset_x, offset_y) => {
                 (offset_x.into_pt(), offset_y.into_pt())
