@@ -414,7 +414,7 @@ impl Document {
             return None;
         }
 
-        let text = format!("{}/{}", page_index + 1, total_pages);
+        let text = options.render_text(page_index + 1, total_pages);
 
         let shaped_text = shape_text(
             &self.pdf_document,
@@ -444,7 +444,7 @@ impl Document {
             page_height
         };
 
-        let (x, y) = match &options.position {
+        let (x, y) = match options.position_for_page(page_index) {
             PageNumberPosition::TopLeft(offset_x, offset_y) => (
                 offset_x.into_pt(),
                 top_boundary - offset_y.into_pt() - text_height,
