@@ -319,7 +319,8 @@ impl Document {
         self.pdf_document
     }
 
-    pub fn merge(self, other: Document) -> PdfDocument {
+    pub fn merge(self, other: Document) -> Document {
+        let style = self.style.clone();
         let title = self.pdf_document.metadata.info.document_title.clone();
         let pages = self
             .generate_document()
@@ -331,7 +332,17 @@ impl Document {
         let mut result = PdfDocument::new(title.as_str());
 
         result.with_pages(pages);
-        result
+        Document {
+            pdf_document: result,
+            elements: Vec::new(),
+            style: style,
+            footer_img: None,
+            header_img: None,
+            page_numbers: None,
+            default_font: None,
+            default_font_size: Pt(10.0),
+            default_font_height_offset: Pt(1.0),
+        }
     }
 
     // pub fn generate_document(mut self) -> PdfDocument {
