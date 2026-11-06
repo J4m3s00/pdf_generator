@@ -318,6 +318,22 @@ impl Document {
 
         self.pdf_document
     }
+
+    pub fn merge(self, other: Document) -> PdfDocument {
+        let title = self.pdf_document.metadata.info.document_title.clone();
+        let pages = self
+            .generate_document()
+            .pages
+            .into_iter()
+            .chain(other.generate_document().pages.into_iter())
+            .collect();
+
+        let mut result = PdfDocument::new(title.as_str());
+
+        result.with_pages(pages);
+        result
+    }
+
     // pub fn generate_document(mut self) -> PdfDocument {
     //     let start_origin = printpdf::Point::new(
     //         self.style.padding.left,
