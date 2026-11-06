@@ -57,6 +57,7 @@ impl Page {
 
 pub struct Document {
     pdf_document: PdfDocument,
+    generated: bool,
 
     pub elements: Vec<Box<dyn Element>>,
     style: DocumentStyle,
@@ -82,6 +83,7 @@ impl Document {
     ) -> Self {
         Document {
             pdf_document: PdfDocument::new(name),
+            generated: false,
             elements: Vec::new(),
             style: DocumentStyle {
                 padding,
@@ -275,6 +277,10 @@ impl Document {
     }
 
     pub fn generate_document(mut self) -> PdfDocument {
+        if self.generated {
+            // Already generated. Return existing document
+            return self.pdf_document;
+        }
         let mut current_builder = ElementBuilder::new(&self);
         // Insert header image
         if let Some((header_image, after_image_padding)) = &self.header_img {
@@ -316,6 +322,8 @@ impl Document {
 
         self.pdf_document.with_pages(pages);
 
+        self.generated = true;
+
         self.pdf_document
     }
 
@@ -342,6 +350,7 @@ impl Document {
             default_font: None,
             default_font_size: Pt(10.0),
             default_font_height_offset: Pt(1.0),
+            generated: true,
         }
     }
 
