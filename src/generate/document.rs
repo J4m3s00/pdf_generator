@@ -330,14 +330,28 @@ impl Document {
     pub fn merge(self, other: Document) -> Document {
         let style = self.style.clone();
         let title = self.pdf_document.metadata.info.document_title.clone();
+
+        let mut result = PdfDocument::new(title.as_str());
+        result.resources.xobjects = self.pdf_document.resources.xobjects.clone();
+        result
+            .resources
+            .xobjects
+            .map
+            .extend(other.pdf_document.resources.xobjects.clone().map);
+
+        result.resources.fonts = self.pdf_document.resources.fonts.clone();
+        result
+            .resources
+            .fonts
+            .map
+            .extend(other.pdf_document.resources.fonts.clone().map);
+
         let pages = self
             .generate_document()
             .pages
             .into_iter()
             .chain(other.generate_document().pages.into_iter())
             .collect();
-
-        let mut result = PdfDocument::new(title.as_str());
 
         result.with_pages(pages);
         Document {
